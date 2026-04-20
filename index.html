@@ -380,6 +380,7 @@ const ENSO_INTENSITY = {
 };
 
 const PLANTING_WINDOWS = {1:{window:'October – November',harvest:'February – March',label:'Dry Season'},2:{window:'May – June',harvest:'August – September',label:'Wet Season'}};
+const PW_MONTHS = {1:{plant:[10,11],harvest:[2,3]},2:{plant:[5,6],harvest:[8,9]}};
 
 // State
 let modelPlanting    = null;
@@ -702,11 +703,11 @@ async function runSimulation() {
 
   // Aggregate by municipality — normalize keys to avoid name mismatch
   const muniResults = {};
-  meta.forEach(({province, municipality, semester}, i) => {
+  meta.forEach(({province, municipality, semester, harvest_year}, i) => {
     const k = `${province.trim().toLowerCase()}||${municipality.trim().toLowerCase()}`;
-    if(!muniResults[k]) muniResults[k] = {province, municipality, dry:[], wet:[]};
-    if(semester===1) muniResults[k].dry.push(preds[i]);
-    else             muniResults[k].wet.push(preds[i]);
+    if(!muniResults[k]) muniResults[k] = {province, municipality, dry:[], wet:[], drySems:[], wetSems:[]};
+    if(semester===1) { muniResults[k].dry.push(preds[i]); muniResults[k].drySems.push({year:harvest_year, sem:1}); }
+    else             { muniResults[k].wet.push(preds[i]); muniResults[k].wetSems.push({year:harvest_year, sem:2}); }
   });
 
   // Determine recommendation per municipality
@@ -718,7 +719,7 @@ async function runSimulation() {
     if(dryMean !== null && wetMean !== null) recommended = dryMean >= wetMean ? 1 : 2;
     else if(dryMean !== null) recommended = 1;
     else if(wetMean !== null) recommended = 2;
-    simResults[k] = {province:r.province, municipality:r.municipality, dry:r.dry, wet:r.wet, dryMean, wetMean, recommended};
+    simResults[k] = {province:r.province, municipality:r.municipality, dry:r.dry, wet:r.wet, drySems:r.drySems, wetSems:r.wetSems, dryMean, wetMean, recommended};
   });
 
   // Animate progress bar to 100% over minimum duration
@@ -777,12 +778,12 @@ function showCellSimResult(pt) {
   const panel = document.getElementById('sim-result');
   if(!r) { panel.innerHTML='<div style="font-size:11px;color:var(--muted);margin-top:10px;">No simulation result for this cell. Run a simulation first.</div>'; return; }
 
-  const dryMean = r.dryMean !== null ? r.dryMean.toFixed(2) : '—';
-  const wetMean = r.wetMean !== null ? r.wetMean.toFixed(2) : '—';
   const pw = PLANTING_WINDOWS[r.recommended] || {};
   const semColor = r.recommended===1 ? 'var(--accent)' : 'var(--accent2)';
+  const dryMeanStr = r.dryMean !== null ? r.dryMean.toFixed(2) : '—';
+  const wetMeanStr = r.wetMean !== null ? r.wetMean.toFixed(2) : '—';
 
-  // Confidence — consensus across analogue seasons
+  // Confidence
   const totalSems = r.dry.length + r.wet.length;
   const agreedSems = r.recommended===1 ? r.dry.length : r.wet.length;
   const consensusPct = totalSems > 0 ? Math.round((agreedSems/totalSems)*100) : 0;
@@ -791,27 +792,217 @@ function showCellSimResult(pt) {
   else if(consensusPct >= 60) { confColor='var(--accent)';  confLabel='Moderate'; }
   else                        { confColor='var(--warn)';    confLabel='Low'; }
 
-  // Yield spread
   const allPreds = [...r.dry, ...r.wet];
   const minP = Math.min(...allPreds), maxP = Math.max(...allPreds);
-  const range = maxP - minP || 1;
 
-  const dryBar = r.dry.map(v => `<span style="display:inline-block;width:${Math.max(4,((v-minP)/range)*100)}%;height:10px;background:rgba(88,166,255,0.5);border-radius:2px;margin:1px;"></span>`).join('');
-  const wetBar = r.wet.map(v => `<span style="display:inline-block;width:${Math.max(4,((v-minP)/range)*100)}%;height:10px;background:rgba(63,185,80,0.5);border-radius:2px;margin:1px;"></span>`).join('');
+  // Plan 2A: season comparison bars
+  const maxMean = Math.max(r.dryMean||0, r.wetMean||0) || 1;
+  const dryBarW = r.dryMean !== null ? Math.round((r.dryMean/maxMean)*100) : 0;
+  const wetBarW = r.wetMean !== null ? Math.round((r.wetMean/maxMean)*100) : 0;
+
+  // Plan 2C: evidence narrative
+  const margin = r.dryMean !== null && r.wetMean !== null ? Math.abs(r.dryMean - r.wetMean) : null;
+  const minMean = r.dryMean !== null && r.wetMean !== null ? Math.min(r.dryMean, r.wetMean) : null;
+  const marginPct = margin !== null && minMean > 0 ? Math.round((margin/minMean)*100) : null;
+  const recLabel = pw.label || '—';
+  const phaseLabel = selectedPhase || 'selected ENSO';
+  const narrative = margin !== null
+    ? `${agreedSems} of ${totalSems} analogue ${phaseLabel} seasons predict higher yield in the ${recLabel} semester. Mean advantage: ${margin.toFixed(2)} mt/ha (${marginPct}% higher than the other semester). Confidence: ${confLabel} (${consensusPct}%; n=${totalSems} analogue seasons — not a significance test).`
+    : `Only ${recLabel} season data available for this municipality in the selected analogues.`;
+
+  // Plan 2D: 12-month calendar strip
+  const MONTH_ABBR = ['J','F','M','A','M','J','J','A','S','O','N','D'];
+  const pwm = PW_MONTHS[r.recommended] || {plant:[],harvest:[]};
+  const calCells = MONTH_ABBR.map((m,i) => {
+    const mo = i+1;
+    const isPlant = pwm.plant.includes(mo);
+    const isHarv  = pwm.harvest.includes(mo);
+    const bg  = isPlant ? 'rgba(88,166,255,0.5)' : isHarv ? 'rgba(240,136,62,0.5)' : 'rgba(255,255,255,0.05)';
+    const bdr = isPlant ? 'rgba(88,166,255,0.8)' : isHarv ? 'rgba(240,136,62,0.8)' : 'var(--border)';
+    const clr = (isPlant||isHarv) ? 'var(--text)' : 'var(--muted)';
+    return `<div style="background:${bg};border:1px solid ${bdr};border-radius:2px;height:18px;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:8px;color:${clr};">${m}</div>`;
+  }).join('');
+
+  // Season labels for breakdown chart
+  const dryLabels = (r.drySems||[]).map(s=>`${s.year} Dry`);
+  const wetLabels = (r.wetSems||[]).map(s=>`${s.year} Wet`);
+  const bkTotal   = r.dry.length + r.wet.length;
+  const bkHeight  = Math.max(60, bkTotal * 22 + 20);
 
   panel.innerHTML = `
     <div class="result-panel" style="margin-top:10px;">
       <div class="result-header">${pt.municipality} · ${pt.province}</div>
-      <div class="result-row"><span class="result-key">Recommendation</span><span class="result-val" style="color:${semColor}">${pw.label||'—'}</span></div>
+      <div class="result-row"><span class="result-key">Recommendation</span><span class="result-val" style="color:${semColor}">${recLabel}</span></div>
       <div class="result-row"><span class="result-key">Confidence</span><span class="result-val" style="color:${confColor}">${confLabel} (${consensusPct}%)</span></div>
       <div class="result-row"><span class="result-key">Seasons agreed</span><span class="result-val" style="color:${confColor}">${agreedSems} of ${totalSems}</span></div>
-      <div class="result-row"><span class="result-key">Dry season mean</span><span class="result-val" style="color:var(--accent)">${dryMean} mt/ha</span></div>
-      <div class="result-row"><span class="result-key">Wet season mean</span><span class="result-val" style="color:var(--accent2)">${wetMean} mt/ha</span></div>
+      <div class="result-row"><span class="result-key">Dry season mean</span><span class="result-val" style="color:var(--accent)">${dryMeanStr} mt/ha</span></div>
+      <div class="result-row"><span class="result-key">Wet season mean</span><span class="result-val" style="color:var(--accent2)">${wetMeanStr} mt/ha</span></div>
       <div class="result-row"><span class="result-key">Yield range</span><span class="result-val">${minP.toFixed(2)} – ${maxP.toFixed(2)} mt/ha</span></div>
-      ${r.dry.length ? `<div style="margin-top:8px;font-size:10px;color:var(--muted);">Dry season predictions (${r.dry.length} season${r.dry.length>1?'s':''})</div><div>${dryBar}</div>` : ''}
-      ${r.wet.length ? `<div style="margin-top:4px;font-size:10px;color:var(--muted);">Wet season predictions (${r.wet.length} season${r.wet.length>1?'s':''})</div><div>${wetBar}</div>` : ''}
-      ${pw.window ? `<div class="result-rec"><strong>Planting Window:</strong> ${pw.window}<br><strong>Expected Harvest:</strong> ${pw.harvest}</div>` : ''}
+
+      <div style="margin-top:10px;">
+        <div style="font-size:9px;color:var(--muted);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Predicted yield by season</div>
+        ${r.dryMean !== null ? `<div style="display:flex;align-items:center;gap:7px;margin-bottom:4px;">
+          <span style="width:28px;font-size:9px;color:var(--accent);font-family:var(--font-mono);">DRY</span>
+          <div style="flex:1;height:12px;background:var(--border);border-radius:3px;overflow:hidden;">
+            <div style="width:${dryBarW}%;height:100%;background:rgba(88,166,255,0.55);border-radius:3px;transition:width 0.4s ease;"></div>
+          </div>
+          <span style="font-size:10px;font-family:var(--font-mono);color:var(--accent);width:52px;text-align:right;">${dryMeanStr} mt/ha</span>
+        </div>` : ''}
+        ${r.wetMean !== null ? `<div style="display:flex;align-items:center;gap:7px;">
+          <span style="width:28px;font-size:9px;color:var(--accent2);font-family:var(--font-mono);">WET</span>
+          <div style="flex:1;height:12px;background:var(--border);border-radius:3px;overflow:hidden;">
+            <div style="width:${wetBarW}%;height:100%;background:rgba(63,185,80,0.55);border-radius:3px;transition:width 0.4s ease;"></div>
+          </div>
+          <span style="font-size:10px;font-family:var(--font-mono);color:var(--accent2);width:52px;text-align:right;">${wetMeanStr} mt/ha</span>
+        </div>` : ''}
+      </div>
+
+      <div style="margin-top:10px;">
+        <div style="font-size:9px;color:var(--muted);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Per-analogue-season predictions</div>
+        <div style="position:relative;height:${bkHeight}px;"><canvas id="pw-breakdown-chart"></canvas></div>
+      </div>
+
+      <div class="result-rec" style="margin-top:8px;">${narrative}</div>
+
+      ${pw.window ? `<div style="margin-top:10px;">
+        <div style="font-size:9px;color:var(--muted);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Recommended Calendar</div>
+        <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:2px;">${calCells}</div>
+        <div style="display:flex;gap:10px;margin-top:5px;font-size:9px;color:var(--muted);">
+          <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:rgba(88,166,255,0.5);margin-right:3px;vertical-align:middle;"></span>Plant</span>
+          <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:rgba(240,136,62,0.5);margin-right:3px;vertical-align:middle;"></span>Harvest</span>
+        </div>
+        <div style="margin-top:6px;font-size:10px;color:var(--muted);"><strong style="color:var(--text);">Planting Window:</strong> ${pw.window} &nbsp;·&nbsp; <strong style="color:var(--text);">Expected Harvest:</strong> ${pw.harvest}</div>
+      </div>` : ''}
+    </div>
+
+    <div class="result-panel" style="margin-top:8px;border-color:rgba(88,166,255,0.2);background:rgba(88,166,255,0.03);">
+      <div class="result-header" style="color:var(--accent);">Observed Historical Yields</div>
+      <div id="obs-content"><div style="font-size:11px;color:var(--muted);">Loading…</div></div>
     </div>`;
+
+  requestAnimationFrame(() => buildCellCharts(r, dryLabels, wetLabels));
+}
+
+function buildCellCharts(r, dryLabels, wetLabels) {
+  // ── Plan 2B: per-season horizontal bar chart ──
+  if(window._pwChart) { window._pwChart.destroy(); window._pwChart = null; }
+  const pwCanvas = document.getElementById('pw-breakdown-chart');
+  if(pwCanvas && (r.dry.length + r.wet.length) > 0) {
+    const labels = [...dryLabels, ...wetLabels];
+    const data   = [...r.dry, ...r.wet];
+    const bgColors  = [...r.dry.map(()=>'rgba(88,166,255,0.55)'),  ...r.wet.map(()=>'rgba(63,185,80,0.55)')];
+    const bdrColors = [...r.dry.map(()=>'rgba(88,166,255,0.9)'),   ...r.wet.map(()=>'rgba(63,185,80,0.9)')];
+    window._pwChart = new Chart(pwCanvas, {
+      type:'bar',
+      data:{labels, datasets:[{data, backgroundColor:bgColors, borderColor:bdrColors, borderWidth:1, borderRadius:2}]},
+      options:{
+        indexAxis:'y', responsive:true, maintainAspectRatio:false,
+        plugins:{legend:{display:false}, tooltip:{callbacks:{label:i=>`${i.parsed.x.toFixed(2)} mt/ha`}}},
+        scales:{
+          x:{min:0, title:{display:true,text:'Predicted Yield (mt/ha)',color:'#8b949e',font:{size:9,family:'Space Mono'}},
+             grid:{color:'rgba(255,255,255,0.05)'}, ticks:{color:'#8b949e',font:{size:9,family:'Space Mono'}}},
+          y:{grid:{display:false}, ticks:{color:'#8b949e',font:{size:9,family:'Space Mono'}}}
+        }
+      }
+    });
+  }
+
+  // ── Plan 1: observed historical data chart ──
+  if(window._obsChart) { window._obsChart.destroy(); window._obsChart = null; }
+  const obsContent = document.getElementById('obs-content');
+  if(!obsContent || !csvData) return;
+
+  const sems   = getAnalogueSemesters();
+  const semSet = new Set(sems.map(s=>`${s.y}_${s.s}`));
+  const prov   = r.province.trim().toLowerCase();
+  const muni   = r.municipality.trim().toLowerCase();
+
+  const obsRows = csvData.filter(row =>
+    row.province && row.province.trim().toLowerCase() === prov &&
+    row.municipality && row.municipality.trim().toLowerCase() === muni &&
+    semSet.has(`${row.harvest_year}_${row.semester}`) &&
+    +row.yield_mt_ha > 0
+  );
+
+  if(!obsRows.length) {
+    obsContent.innerHTML = '<div style="font-size:11px;color:var(--muted);">No observed data for this municipality in the selected analogue seasons.</div>';
+    return;
+  }
+
+  const obsGroups = {};
+  obsRows.forEach(row => {
+    const gk = `${row.harvest_year}_${row.semester}`;
+    if(!obsGroups[gk]) obsGroups[gk] = {year:+row.harvest_year, sem:+row.semester, vals:[]};
+    obsGroups[gk].vals.push(+row.yield_mt_ha);
+  });
+
+  const obsSeasons = Object.values(obsGroups)
+    .sort((a,b) => a.year-b.year || a.sem-b.sem)
+    .map(g => ({...g, mean: g.vals.reduce((s,v)=>s+v,0)/g.vals.length}));
+
+  const obsDrySeas = obsSeasons.filter(g=>g.sem===1);
+  const obsWetSeas = obsSeasons.filter(g=>g.sem===2);
+  const obsDryMean = obsDrySeas.length ? (obsDrySeas.reduce((s,g)=>s+g.mean,0)/obsDrySeas.length).toFixed(2) : null;
+  const obsWetMean = obsWetSeas.length ? (obsWetSeas.reduce((s,g)=>s+g.mean,0)/obsWetSeas.length).toFixed(2) : null;
+
+  const years    = [...new Set(obsSeasons.map(g=>String(g.year)))].sort();
+  const dryData  = years.map(yr => { const g=obsDrySeas.find(g=>String(g.year)===yr); return g?+g.mean.toFixed(3):null; });
+  const wetData  = years.map(yr => { const g=obsWetSeas.find(g=>String(g.year)===yr); return g?+g.mean.toFixed(3):null; });
+
+  obsContent.innerHTML = `
+    <div style="display:flex;gap:16px;margin-bottom:8px;flex-wrap:wrap;">
+      ${obsDryMean!==null?`<div class="result-row" style="flex:1;border:none;padding:2px 0;"><span class="result-key">Obs. dry mean</span><span class="result-val" style="color:var(--accent)">${obsDryMean} mt/ha</span></div>`:''}
+      ${obsWetMean!==null?`<div class="result-row" style="flex:1;border:none;padding:2px 0;"><span class="result-key">Obs. wet mean</span><span class="result-val" style="color:var(--accent2)">${obsWetMean} mt/ha</span></div>`:''}
+    </div>
+    <div style="position:relative;height:130px;"><canvas id="obs-yield-chart"></canvas></div>
+    <div style="font-size:9px;color:var(--muted);margin-top:5px;">Observed reported yield per analogue season (one value per municipality-semester from CSV). Dashed lines = transformer model mean prediction across analogue seasons — not a ground-truth target.</div>`;
+
+  const obsCanvas = document.getElementById('obs-yield-chart');
+  if(!obsCanvas) return;
+
+  const dryPred = r.dryMean, wetPred = r.wetMean;
+  const refLinePlugin = {
+    id:'claraRefLines',
+    afterDraw(chart){
+      const ctx=chart.ctx, yA=chart.scales.y, xA=chart.scales.x;
+      if(!yA||!xA) return;
+      const drawH = (val, color, label) => {
+        if(val===null||val===undefined) return;
+        const y = yA.getPixelForValue(+val);
+        ctx.save(); ctx.strokeStyle=color; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+        ctx.beginPath(); ctx.moveTo(xA.left,y); ctx.lineTo(xA.right,y); ctx.stroke();
+        ctx.fillStyle=color; ctx.font='8px Space Mono'; ctx.textAlign='right';
+        ctx.fillText(label, xA.right-4, y-3);
+        ctx.restore();
+      };
+      drawH(dryPred, 'rgba(88,166,255,0.8)',  `Pred ${dryPred?dryPred.toFixed(2):'—'}`);
+      drawH(wetPred, 'rgba(63,185,80,0.8)',   `Pred ${wetPred?wetPred.toFixed(2):'—'}`);
+    }
+  };
+
+  window._obsChart = new Chart(obsCanvas, {
+    type:'bar',
+    data:{
+      labels: years,
+      datasets:[
+        {label:'Dry Season', data:dryData, backgroundColor:'rgba(88,166,255,0.5)', borderColor:'rgba(88,166,255,0.9)', borderWidth:1, borderRadius:2},
+        {label:'Wet Season', data:wetData, backgroundColor:'rgba(63,185,80,0.5)',  borderColor:'rgba(63,185,80,0.9)',  borderWidth:1, borderRadius:2}
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{labels:{color:'#8b949e',font:{size:9,family:'Space Mono'},boxWidth:10,padding:8}},
+        tooltip:{callbacks:{label:i=>i.raw!==null?`${i.dataset.label}: ${(+i.raw).toFixed(2)} mt/ha`:'No data'}}
+      },
+      scales:{
+        y:{min:0, title:{display:true,text:'Yield (mt/ha)',color:'#8b949e',font:{size:9,family:'Space Mono'}},
+           grid:{color:'rgba(255,255,255,0.05)'}, ticks:{color:'#8b949e',font:{size:9,family:'Space Mono'}}},
+        x:{grid:{display:false}, ticks:{color:'#8b949e',font:{size:9,family:'Space Mono'}}}
+      }
+    },
+    plugins:[refLinePlugin]
+  });
 }
 
 // ══════════════════════════════════════════════════════════════
