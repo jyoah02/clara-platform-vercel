@@ -680,10 +680,19 @@ async function runSimulation() {
     simResults[k] = {province:r.province, municipality:r.municipality, dry:r.dry, wet:r.wet, dryMean, wetMean, recommended};
   });
 
+  // Animate progress bar to 100% over 2.5 seconds minimum
+  const simStart = Date.now();
+  const MIN_DURATION = 2500;
+
+  document.getElementById('progress-fill').style.transition = 'width 2s ease';
   document.getElementById('progress-fill').style.width = '100%';
+  document.getElementById('progress-label').textContent = 'Coloring map…';
 
   // Color the map
   colorPlantingMap();
+
+  const elapsed = Date.now() - simStart;
+  const remaining = Math.max(0, MIN_DURATION - elapsed);
 
   setTimeout(() => {
     document.getElementById('progress-wrap').style.display = 'none';
