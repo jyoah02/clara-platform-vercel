@@ -166,6 +166,19 @@ header{background:var(--panel);border-bottom:1px solid var(--border);padding:10p
 .loading-bar{text-align:center;padding:28px;color:var(--muted);font-size:12px;font-family:var(--font-mono);}
 .loading-bar .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;margin-right:8px;vertical-align:middle;}
 @keyframes spin{to{transform:rotate(360deg);}}
+/* FULL-SCREEN LOADING OVERLAY */
+.loading-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(13,17,23,0.95);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;z-index:9999;}
+.loading-overlay.active{display:flex;}
+.loading-overlay-content{text-align:center;padding:32px;color:var(--text);}
+.loading-overlay-title{font-size:16px;font-weight:600;margin-bottom:16px;font-family:var(--font-body);}
+.loading-overlay-label{font-family:var(--font-mono);font-size:12px;color:var(--muted);margin-bottom:12px;}
+.loading-overlay-bar{width:240px;height:8px;background:var(--border);border-radius:4px;overflow:hidden;margin:0 auto 16px;}
+.loading-overlay-fill{height:100%;background:var(--accent);border-radius:4px;width:0%;transition:width 0.6s linear;}
+.prov-filter-toggle{display:flex;align-items:center;gap:6px;cursor:pointer;font-family:var(--font-mono);font-size:11px;color:var(--muted);margin:8px 0 0 0;}
+.prov-filter-toggle:hover{color:var(--text);}
+.prov-filter-toggle .toggle-icon{display:inline-block;transition:transform 0.2s;}
+.prov-filter-toggle.collapsed .toggle-icon{transform:rotate(-90deg);}
+.prov-list.collapsed{display:none;}
 ::-webkit-scrollbar{width:4px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
@@ -241,10 +254,13 @@ header{background:var(--panel);border-bottom:1px solid var(--border);padding:10p
         style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:11px;padding:6px 9px;border-radius:4px;outline:none;margin-bottom:7px;"
         oninput="onPlantingSearch(this.value)" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
       <div id="p-search-results" style="display:none;max-height:140px;overflow-y:auto;display:flex;flex-direction:column;gap:2px;"></div>
-      <div class="sb-label" style="margin-top:8px;">Filter by Province</div>
-      <div class="prov-list" id="prov-list-p"></div>
+      <div class="prov-filter-toggle collapsed" id="prov-filter-toggle" onclick="toggleProvFilter()">
+        <span class="toggle-icon">▼</span>
+        <span>Filter by Province</span>
+      </div>
+      <div class="prov-list collapsed" id="prov-list-p"></div>
     </div>
-    <div class="sb-section" style="flex:1;overflow-y:auto;">
+    <div class="sb-section" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;">
       <div class="sb-label">ENSO Forecast Condition</div>
       <div class="enso-phase-row">
         <button class="enso-phase-btn" id="btn-nino" onclick="selectPhase('El Niño')">El Niño</button>
@@ -259,11 +275,7 @@ header{background:var(--panel);border-bottom:1px solid var(--border);padding:10p
       </div>
       <div class="enso-analogue-info" id="analogue-info" style="display:none;"></div>
       <button class="btn-simulate" id="simulate-btn" onclick="runSimulation()" disabled>Run Simulation</button>
-      <div class="progress-wrap" id="progress-wrap">
-        <div class="progress-label" id="progress-label">Running inference...</div>
-        <div class="progress-bar-track"><div class="progress-bar-fill" id="progress-fill"></div></div>
-      </div>
-      <div id="sim-result"></div>
+      <div id="sim-result" style="margin-top:10px;"></div>
     </div>
     <div class="legend-strip">
       <div class="legend-title">Map Legend</div>
@@ -273,6 +285,15 @@ header{background:var(--panel);border-bottom:1px solid var(--border);padding:10p
     </div>
   </div>
   <div id="map-planting"></div>
+</div>
+
+<!-- ═══════════ FULL-SCREEN LOADING OVERLAY ═══════════ -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="loading-overlay-content">
+    <div class="loading-overlay-title">Running Simulation</div>
+    <div class="loading-overlay-label" id="overlay-progress-label">Running inference...</div>
+    <div class="loading-overlay-bar"><div class="loading-overlay-fill" id="overlay-progress-fill"></div></div>
+  </div>
 </div>
 
 <!-- ═══════════ CORRELATIONAL MODE ═══════════ -->
@@ -592,14 +613,28 @@ function updateSimBtn() {
 // SIMULATION
 // ══════════════════════════════════════════════════════════════
 async function runSimulation() {
+  const runStart = Date.now();
+  const MIN_DURATION = 5000;
   const sems = getAnalogueSemesters();
   if(!sems.length || !modelPlanting || !csvData) return;
 
   const btn = document.getElementById('simulate-btn');
   btn.disabled = true;
   btn.textContent = 'Simulating…';
-  document.getElementById('progress-wrap').style.display = 'block';
-  document.getElementById('sim-result').innerHTML = '';
+  
+  // Show full-screen overlay
+  const overlay = document.getElementById('loading-overlay');
+  overlay.classList.add('active');
+  console.log('Loading overlay activated');
+  const fillEl = document.getElementById('overlay-progress-fill');
+  fillEl.style.width = '0%'; // Reset to 0
+  document.getElementById('overlay-progress-label').textContent = 'Running inference...';
+  
+  // Start progress animation
+  setTimeout(() => {
+    fillEl.style.width = '5%';
+    console.log('Progress set to 5%');
+  }, 50);
 
   // Filter CSV to matching seasons
   const semSet = new Set(sems.map(s=>`${s.y}_${s.s}`));
@@ -643,8 +678,11 @@ async function runSimulation() {
     meta.push({province:prov, municipality:muni, harvest_year:+hy, semester:+sem});
   });
 
-  document.getElementById('progress-label').textContent = `Running inference on ${sequences.length} sequences…`;
-  document.getElementById('progress-fill').style.width = '10%';
+  document.getElementById('overlay-progress-label').textContent = `Running inference on ${sequences.length} sequences…`;
+  setTimeout(() => {
+    document.getElementById('overlay-progress-fill').style.width = '30%';
+    console.log('Progress set to 30%');
+  }, 100);
 
   // Batch inference
   let preds;
@@ -652,12 +690,15 @@ async function runSimulation() {
     preds = await runBatchInference(modelPlanting, sequences);
   } catch(e) {
     btn.disabled=false; btn.textContent='Run Simulation';
-    document.getElementById('progress-wrap').style.display='none';
+    overlay.classList.remove('active');
     document.getElementById('sim-result').innerHTML = `<div style="color:var(--error);font-size:11px;padding:8px;">Inference error: ${e.message}</div>`;
     return;
   }
 
-  document.getElementById('progress-fill').style.width = '80%';
+  setTimeout(() => {
+    document.getElementById('overlay-progress-fill').style.width = '70%';
+    console.log('Progress set to 70%');
+  }, 100);
 
   // Aggregate by municipality — normalize keys to avoid name mismatch
   const muniResults = {};
@@ -680,22 +721,25 @@ async function runSimulation() {
     simResults[k] = {province:r.province, municipality:r.municipality, dry:r.dry, wet:r.wet, dryMean, wetMean, recommended};
   });
 
-  // Animate progress bar to 100% over 2.5 seconds minimum
-  const simStart = Date.now();
-  const MIN_DURATION = 5000;
-
-  document.getElementById('progress-fill').style.transition = 'width 2s ease';
-  document.getElementById('progress-fill').style.width = '100%';
-  document.getElementById('progress-label').textContent = 'Coloring map…';
+  // Animate progress bar to 100% over minimum duration
+  const elapsed = Date.now() - runStart;
+  const remaining = Math.max(1000, MIN_DURATION - elapsed);
+  
+  setTimeout(() => {
+    const fillEl2 = document.getElementById('overlay-progress-fill');
+    fillEl2.style.transition = `width ${remaining / 1000}s linear`;
+    fillEl2.style.width = '100%';
+    document.getElementById('overlay-progress-label').textContent = 'Coloring map…';
+    console.log('Progress animating to 100% over', remaining / 1000, 'seconds');
+  }, 100);
 
   // Color the map
   colorPlantingMap();
 
-  const elapsed = Date.now() - simStart;
-  const remaining = Math.max(0, MIN_DURATION - elapsed);
-
+  // Hide progress bar after minimum duration
   setTimeout(() => {
-    document.getElementById('progress-wrap').style.display = 'none';
+    overlay.classList.remove('active');
+    console.log('Loading overlay hidden');
     btn.disabled=false; btn.textContent='Run Simulation';
     const muniCount = Object.keys(simResults).length;
     document.getElementById('sim-result').innerHTML = `
@@ -706,7 +750,7 @@ async function runSimulation() {
         <div class="result-row"><span class="result-key">Analogue seasons</span><span class="result-val">${sems.length}</span></div>
         <div class="result-rec">Click any CHIRPS cell to see the yield distribution for that municipality.</div>
       </div>`;
-  }, 300);
+  }, remaining);
 }
 
 function colorPlantingMap() {
@@ -857,6 +901,13 @@ PROVINCES.forEach(prov => {
 // PLANTING MAP SEARCH & PROVINCE FILTER
 // ══════════════════════════════════════════════════════════════
 let activePlantingProv = null;
+
+function toggleProvFilter() {
+  const toggle = document.getElementById('prov-filter-toggle');
+  const list = document.getElementById('prov-list-p');
+  toggle.classList.toggle('collapsed');
+  list.classList.toggle('collapsed');
+}
 
 function buildPlantingProvFilter() {
   const list = document.getElementById('prov-list-p');
