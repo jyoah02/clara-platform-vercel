@@ -32,7 +32,7 @@ header{background:var(--panel);border-bottom:1px solid var(--border);padding:10p
 .mode-panel{display:none;flex:1;overflow:hidden;}
 .mode-panel.active{display:flex;}
 #panel-correlation.active{display:flex;flex-direction:column;overflow-y:auto;}
-.sidebar{width:290px;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;}
+.sidebar{width:320px;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;}
 .sb-section{padding:13px 15px;border-bottom:1px solid var(--border);flex-shrink:0;}
 .sb-label{font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);margin-bottom:9px;}
 .info-panel{flex:1;overflow-y:auto;padding:13px 15px;}
@@ -119,7 +119,7 @@ header{background:var(--panel);border-bottom:1px solid var(--border);padding:10p
 .dist-bar-track{height:6px;background:var(--border);border-radius:3px;overflow:hidden;}
 .dist-bar-fill{height:100%;border-radius:3px;}
 /* LEGEND */
-.legend-strip{padding:10px 15px;border-top:1px solid var(--border);flex-shrink:0;}
+.legend-strip{padding:6px 12px;border-top:1px solid var(--border);flex-shrink:0;}
 .legend-title{font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin-bottom:6px;}
 .legend-row{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--muted);margin-bottom:3px;}
 .legend-swatch{width:14px;height:14px;border-radius:3px;flex-shrink:0;}
@@ -195,7 +195,7 @@ header{background:var(--panel);border-bottom:1px solid var(--border);padding:10p
   </div>
   <nav class="mode-tabs">
     <button class="mode-tab active" onclick="switchMode('validation')">Validation</button>
-    <button class="mode-tab" onclick="switchMode('planting')">Planting Week</button>
+    <button class="mode-tab" onclick="switchMode('planting')">Planting</button>
     <button class="mode-tab" onclick="switchMode('correlation')">Correlational</button>
   </nav>
   <div class="stat-chips">
@@ -235,7 +235,7 @@ header{background:var(--panel);border-bottom:1px solid var(--border);padding:10p
 <!-- ═══════════ PLANTING WEEK MODE ═══════════ -->
 <div class="mode-panel" id="panel-planting">
   <div class="sidebar">
-    <div class="sb-section">
+    <div class="sb-section" style="padding:8px 15px;">
       <div class="sb-label">Model</div>
       <div class="model-status-row">
         <span class="m-badge unloaded" id="p-model-badge"><span class="mdot"></span>Not loaded</span>
@@ -246,7 +246,6 @@ header{background:var(--panel);border-bottom:1px solid var(--border);padding:10p
         <span class="m-badge unloaded" id="csv-badge"><span class="mdot"></span>Not loaded</span>
         <button class="btn-sm" id="csv-load-btn" onclick="loadCSV()">Load CSV</button>
       </div>
-      <div style="font-size:10px;color:var(--muted);line-height:1.6;margin-top:6px;">Place <code style="color:var(--accent);font-size:9px;">central_luzon_weekly_climate_yield_2018-2025_v2.csv</code> in the same folder for auto-load.</div>
     </div>
     <div class="sb-section">
       <div class="sb-label">Search Location</div>
@@ -277,11 +276,10 @@ header{background:var(--panel);border-bottom:1px solid var(--border);padding:10p
       <button class="btn-simulate" id="simulate-btn" onclick="runSimulation()" disabled>Run Simulation</button>
       <div id="sim-result" style="margin-top:10px;"></div>
     </div>
-    <div class="legend-strip">
-      <div class="legend-title">Map Legend</div>
-      <div class="legend-row"><div class="legend-swatch" style="background:rgba(88,166,255,0.5);border:1px solid #58a6ff"></div>Dry season recommended</div>
-      <div class="legend-row"><div class="legend-swatch" style="background:rgba(63,185,80,0.5);border:1px solid #3fb950"></div>Wet season recommended</div>
-      <div class="legend-row"><div class="legend-swatch" style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.2)"></div>No data / not simulated</div>
+    <div class="legend-strip" style="display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;">
+      <div class="legend-row" style="margin-bottom:0;font-size:10px;"><div class="legend-swatch" style="width:10px;height:10px;background:rgba(88,166,255,0.5);border:1px solid #58a6ff"></div>Dry</div>
+      <div class="legend-row" style="margin-bottom:0;font-size:10px;"><div class="legend-swatch" style="width:10px;height:10px;background:rgba(63,185,80,0.5);border:1px solid #3fb950"></div>Wet</div>
+      <div class="legend-row" style="margin-bottom:0;font-size:10px;"><div class="legend-swatch" style="width:10px;height:10px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.2)"></div>No data</div>
     </div>
   </div>
   <div id="map-planting"></div>
@@ -300,7 +298,7 @@ header{background:var(--panel);border-bottom:1px solid var(--border);padding:10p
 <div class="mode-panel" id="panel-correlation">
   <div class="corr-wrap">
     <div class="corr-title">Correlational Analysis</div>
-    <div class="corr-sub">Select an ENSO condition and a month to explore how climate variables relate to yield anomaly under that condition. Uses partial dependence from the Transformer yield anomaly model (R² 0.1437 · v2).</div>
+    <div class="corr-sub">Select an ENSO condition and a starting month to see how climate from that month through harvest correlates with semester yield — a staggered lag profile across the growing window.</div>
     <div class="corr-model-bar">
       <div style="flex:1;">
         <div class="corr-model-label">Analysis Method</div>
@@ -326,6 +324,7 @@ header{background:var(--panel);border-bottom:1px solid var(--border);padding:10p
       <div class="effect-summary" id="effect-summary"></div>
       <div class="charts-grid" id="charts-grid"></div>
       <div id="model-prediction-section" style="margin-top:32px;display:none;">
+        <div class="callout warn" style="margin-bottom:12px;"><div class="callout-icon">⚠</div><div><div class="callout-body">Shown on training data — the transformer was trained on the same 2018–2025 dataset used for the Spearman computation. Agreement is expected by construction, not independent validation.</div></div></div>
         <div class="charts-title" style="margin-bottom:6px;">Section 2 — Yield Anomaly Model Complement</div>
         <div style="font-size:11px;color:var(--muted);margin-bottom:14px;line-height:1.7;">Model predictions across all historical analogue seasons matching the selected ENSO condition and semester. Complements the Spearman findings — if both sections agree in direction, the finding is reinforced.</div>
         <div id="model-pred-content"></div>
@@ -380,6 +379,21 @@ const ENSO_INTENSITY = {
 };
 
 const PLANTING_WINDOWS = {1:{window:'October – November',harvest:'February – March',label:'Dry Season'},2:{window:'May – June',harvest:'August – September',label:'Wet Season'}};
+
+// ── GROWING WINDOW HELPER ──────────────────────────────────────
+function buildGrowingWindow(startMonth, sem) {
+  const harvestEnd = sem === 1 ? 3 : 9  // dry→Mar, wet→Sep
+  const window = []
+  let cur = startMonth
+  for(let i = 0; i < 6; i++) {
+    window.push(cur)
+    if(cur === harvestEnd) break
+    cur = cur === 12 ? 1 : cur + 1
+  }
+  return window
+}
+
+const MONTH_SHORT = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const PW_MONTHS = {1:{plant:[10,11],harvest:[2,3]},2:{plant:[5,6],harvest:[8,9]}};
 
 // State
@@ -571,7 +585,8 @@ function selectPhase(phase) {
 function selectIntensity(intensity) {
   selectedIntensity = intensity;
   document.querySelectorAll('.enso-int-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById('int-'+intensity.toLowerCase().replace('moderate','mod')).classList.add('active');
+  const idMap = {all:'all',weak:'weak',moderate:'mod',strong:'str'};
+  document.getElementById('int-'+(idMap[intensity.toLowerCase()]||intensity.toLowerCase())).classList.add('active');
   updateAnalogueInfo();
   updateSimBtn();
 }
@@ -827,7 +842,7 @@ function showCellSimResult(pt) {
   const dryLabels = (r.drySems||[]).map(s=>`${s.year} Dry`);
   const wetLabels = (r.wetSems||[]).map(s=>`${s.year} Wet`);
   const bkTotal   = r.dry.length + r.wet.length;
-  const bkHeight  = Math.max(60, bkTotal * 22 + 20);
+  const bkHeight  = Math.max(90, bkTotal * 28 + 36);
 
   panel.innerHTML = `
     <div class="result-panel" style="margin-top:10px;">
@@ -898,10 +913,12 @@ function buildCellCharts(r, dryLabels, wetLabels) {
       options:{
         indexAxis:'y', responsive:true, maintainAspectRatio:false,
         plugins:{legend:{display:false}, tooltip:{callbacks:{label:i=>`${i.parsed.x.toFixed(2)} mt/ha`}}},
+        layout:{padding:{left:4,right:4,top:0,bottom:0}},
         scales:{
           x:{min:0, title:{display:true,text:'Predicted Yield (mt/ha)',color:'#8b949e',font:{size:9,family:'Space Mono'}},
              grid:{color:'rgba(255,255,255,0.05)'}, ticks:{color:'#8b949e',font:{size:9,family:'Space Mono'}}},
-          y:{grid:{display:false}, ticks:{color:'#8b949e',font:{size:9,family:'Space Mono'}}}
+          y:{grid:{display:false}, ticks:{color:'#8b949e',font:{size:9,family:'Space Mono'},padding:4},
+             afterFit(axis){axis.width=Math.max(axis.width,72);}}
         }
       }
     });
@@ -1380,18 +1397,28 @@ MONTHS.forEach((m,i)=>{
 
 function selectMonth(idx,btn) {
   selectedMonth=idx;
-  document.querySelectorAll('.month-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  renderSeasonCtx(idx);
+  const m=MONTHS[idx];
+  const startNum=MONTH_NUMS[m.n];
+  const growWin=buildGrowingWindow(startNum, m.sem);
+  // highlight all months in the growing window
+  document.querySelectorAll('.month-btn').forEach((b,i)=>{
+    const mn=MONTH_NUMS[MONTHS[i].n];
+    b.classList.toggle('active', growWin.includes(mn) && MONTHS[i].sem===m.sem);
+  });
+  renderSeasonCtx(idx, growWin);
   updateAnalyzeBtn();
   document.getElementById('corr-results').style.display='none';
 }
 
-function renderSeasonCtx(idx) {
+function renderSeasonCtx(idx, growWin) {
   const m=MONTHS[idx];
   const isDry=m.sem===1;
   const box=document.getElementById('season-ctx-box');
-  box.innerHTML=`<div class="season-ctx ${isDry?'dry':'wet'}"><div class="ctx-title">${m.n} → ${m.harvest} Harvest</div><div class="ctx-body"><strong>${m.n}</strong> falls in the <strong>${isDry?'Dry Season (Sep 16–Mar 15)':'Wet Season (Mar 16–Sep 15)'}</strong>.<br>Typical planting: <strong>${isDry?'October – November':'May – June'}</strong> · Expected harvest: <strong>${m.harvest}</strong></div></div>`;
+  const winLen=growWin ? growWin.length : '';
+  const winStart=growWin ? MONTH_SHORT[growWin[0]] : m.n;
+  const winEnd=growWin ? MONTH_SHORT[growWin[growWin.length-1]] : '—';
+  const winLabel=growWin ? `Growing window: ${winStart} → ${winEnd} (${isDry?'Dry Season':'Wet Season'} · ${winLen} month${winLen!==1?'s':''})` : `${m.n} → ${m.harvest} Harvest`;
+  box.innerHTML=`<div class="season-ctx ${isDry?'dry':'wet'}"><div class="ctx-title">${winLabel}</div><div class="ctx-body"><strong>${m.n}</strong> starts in the <strong>${isDry?'Dry Season (Sep 16–Mar 15)':'Wet Season (Mar 16–Sep 15)'}</strong>.<br>Typical planting: <strong>${isDry?'October – November':'May – June'}</strong> · Expected harvest: <strong>${m.harvest}</strong></div></div>`;
 }
 
 function updateAnalyzeBtn() {
@@ -1414,90 +1441,85 @@ async function runCorrelation() {
   document.getElementById('corr-results').style.display='none';
   document.getElementById('corr-loading').style.display='block';
   corrCharts.forEach(ch=>ch.destroy()); corrCharts=[];
+  if(window._lagChart) { window._lagChart.destroy(); window._lagChart=null; }
 
   const m        = MONTHS[selectedMonth];
-  const monthNum = MONTH_NUMS[m.n];
+  const startNum = MONTH_NUMS[m.n];
   const sem      = m.sem;
+  const growWin  = buildGrowingWindow(startNum, sem);
 
-  // ── FILTER CSV TO SELECTED MONTH + ENSO CONDITION ─────────
-  const monthRows = csvData.filter(r => {
-    if(!r.week_start) return false;
-    if(!r.yield_anomaly && r.yield_anomaly !== 0) return false;
-    if(r.yield_mt_ha <= 0) return false;
-    const d = new Date(r.week_start);
-    if(isNaN(d)) return false;
-    if(d.getMonth()+1 !== monthNum) return false;
-    if(r.semester !== sem) return false;
-    // ENSO filter
-    if(corrENSOPhase !== 'All') {
-      if(r.enso_phase !== corrENSOPhase) return false;
+  // ── ENSO FILTER via analogue season set ───────────────────
+  const analogueSems = ENSO_SEASONS[corrENSOPhase] || []
+  const semSet = new Set(analogueSems.map(s=>`${s.y}_${s.s}`))
+
+  const mean = arr => arr.reduce((a,b)=>a+b,0)/arr.length
+
+  // ── AGGREGATE: group by province||municipality||harvest_year||semester ──
+  // Each unit accumulates byMonth data for all months in the growing window
+  const units = {}
+  csvData.forEach(r => {
+    if(!r.week_start) return
+    if(!r.yield_anomaly && r.yield_anomaly !== 0) return
+    if(+r.yield_mt_ha <= 0) return
+    if(+r.semester !== sem) return
+    const semKey = `${r.harvest_year}_${r.semester}`
+    if(analogueSems.length && !semSet.has(semKey)) return
+    const d = new Date(r.week_start)
+    if(isNaN(d)) return
+    const rowMonth = d.getMonth() + 1
+    if(!growWin.includes(rowMonth)) return
+    const k = `${r.province}||${r.municipality}||${r.harvest_year}||${r.semester}`
+    if(!units[k]) {
+      units[k] = { yield_anomaly: +r.yield_anomaly, byMonth: {} }
+      growWin.forEach(mn => { units[k].byMonth[mn] = {wind:[],temp:[],solar:[],vapour:[],precip:[]} })
     }
-    return true;
-  });
+    const bm = units[k].byMonth[rowMonth]
+    bm.wind.push(+r.Wind_Speed_10m_Mean_24h)
+    bm.temp.push(+r.Temperature_Air_2m_Mean_24h)
+    bm.solar.push(+r.Solar_Radiation_Flux)
+    bm.vapour.push(+r.Vapour_Pressure_Mean_24h)
+    bm.precip.push(+r.Precipitation_CHIRPS)
+  })
 
-  // ── AGGREGATE TO MUNICIPALITY-YEAR MONTHLY MEANS ──────────
-  // Key: province||municipality||harvest_year
-  const agg = {};
-  monthRows.forEach(r => {
-    const k = `${r.province}||${r.municipality}||${r.harvest_year}`;
-    if(!agg[k]) agg[k] = {
-      wind:[], temp:[], solar:[], vapour:[], precip:[], anomalies:[]
-    };
-    agg[k].wind.push(+r.Wind_Speed_10m_Mean_24h);
-    agg[k].temp.push(+r.Temperature_Air_2m_Mean_24h);
-    agg[k].solar.push(+r.Solar_Radiation_Flux);
-    agg[k].vapour.push(+r.Vapour_Pressure_Mean_24h);
-    agg[k].precip.push(+r.Precipitation_CHIRPS);
-    agg[k].anomalies.push(+r.yield_anomaly);
-  });
-
-  const mean = arr => arr.reduce((a,b)=>a+b,0)/arr.length;
-
-  const obs = Object.values(agg).map(g => ({
-    wind:   mean(g.wind),
-    temp:   mean(g.temp),
-    solar:  mean(g.solar),
-    vapour: mean(g.vapour),
-    precip: mean(g.precip),
-    anomaly:mean(g.anomalies)
-  }));
-
-  const n = obs.length;
+  // Keep only units that have data for every month in the window
+  const completeUnits = Object.values(units).filter(u =>
+    growWin.every(mn => u.byMonth[mn].wind.length > 0)
+  )
 
   document.getElementById('corr-loading').style.display='none';
+
+  const n = completeUnits.length
 
   if(n < 5) {
     document.getElementById('corr-results').style.display='block';
     document.getElementById('effect-summary').innerHTML =
       `<div style="grid-column:1/-1;color:var(--warn);font-size:12px;padding:12px;">
-        Not enough observations (${n}) for this ENSO condition and month combination.
-        Try selecting All ENSO conditions or a different month.
+        Not enough observations (${n}) for this ENSO condition and starting month combination.
+        Try selecting a different ENSO condition or month.
        </div>`;
     document.getElementById('charts-grid').innerHTML='';
     btn.disabled=false;
     return;
   }
 
-  // ── COMPUTE SPEARMAN PER VARIABLE ─────────────────────────
-  const anomalies = obs.map(o=>o.anomaly);
-  const vars = [
-    {key:'wind',  label:'Wind Speed',      unit:'m/s'},
-    {key:'temp',  label:'Temperature',     unit:'°C'},
-    {key:'solar', label:'Solar Radiation', unit:'MJ/m²/day'},
-    {key:'vapour',label:'Vapour Pressure', unit:'hPa'},
-    {key:'precip',label:'Precipitation',   unit:'mm/week'},
-  ];
+  // ── COMPUTE LAG PROFILE ───────────────────────────────────
+  const varKeys = ['wind','temp','solar','vapour','precip']
+  const profile = {}
+  varKeys.forEach(v => { profile[v] = [] })
 
-  const results = vars.map(v => {
-    const xs = obs.map(o=>o[v.key]);
-    const anomalies = obs.map(o=>o.anomaly);
-    const r  = spearman(xs, anomalies);
-    const p  = pValue(r, n);
-    const sig = sigLabel(p);
-    return {...v, r, p, sig, xs, _anomalies: anomalies, n};
-  });
+  growWin.forEach((mn, mi) => {
+    const isLast = mi === growWin.length - 1
+    const label = MONTH_SHORT[mn] + (isLast ? ' ▸' : '')
+    varKeys.forEach(v => {
+      const xs = completeUnits.map(u => mean(u.byMonth[mn][v]))
+      const ys = completeUnits.map(u => u.yield_anomaly)
+      const r  = spearman(xs, ys)
+      const p  = pValue(r, n)
+      profile[v].push({monthLabel: label, r, p, n})
+    })
+  })
 
-  renderSpearmanResults(results, m, n);
+  renderLagProfile(profile, growWin, m, n)
 
   // Run model complement if model is loaded
   if(modelCorrelation) {
@@ -1509,129 +1531,150 @@ async function runCorrelation() {
   btn.disabled=false;
 }
 
-// ── RENDER RESULTS ─────────────────────────────────────────
-function renderSpearmanResults(results, m, n) {
-  // Summary cards
-  const summaryEl = document.getElementById('effect-summary');
-  summaryEl.innerHTML = '';
-  results.forEach(({label, r, p, sig}) => {
-    const dir = r >= 0 ? '↑' : '↓';
-    const pos = r >= 0;
-    summaryEl.innerHTML += `
-      <div class="effect-card">
-        <div class="effect-var">${label}</div>
-        <div class="effect-dir ${pos?'pos':'neg'}">${dir}</div>
-        <div class="effect-mag ${pos?'pos':'neg'}">${r.toFixed(3)}</div>
-        <div style="font-size:9px;color:${sig.color};margin-top:3px;font-family:var(--font-mono);">${sig.stars} ${sig.label}</div>
-      </div>`;
-  });
-
-  // Observation count note
-  summaryEl.innerHTML += `
-    <div style="grid-column:1/-1;font-size:10px;color:var(--muted);font-family:var(--font-mono);padding:6px 0;">
-      n = ${n} municipality-year observations · ${m.n} (${m.sem===1?'Dry':'Wet'}) · ENSO: ${corrENSOPhase}
-    </div>`;
-
-  // Charts — scatter plots with regression line
+// ── RENDER LAG PROFILE ─────────────────────────────────────
+function renderLagProfile(profile, growWin, m, n) {
   const chartsGrid = document.getElementById('charts-grid');
   chartsGrid.innerHTML = '';
 
-  results.forEach(({label, unit, r, p, sig, xs}, i) => {
-    const anomalies = xs.map((_,j) => results[0].xs && true).map((_,j) =>
-      csvData ? 0 : 0); // placeholder — we pass anomalies via closure
+  const labels = growWin.map((mn, i) => MONTH_SHORT[mn] + (i === growWin.length-1 ? ' ▸' : ''))
 
-    const card = document.createElement('div');
-    card.className = 'chart-card' + (i===4?' full':'');
+  const varDefs = [
+    {key:'solar',  label:'Solar Radiation', color:'#f7c948'},
+    {key:'temp',   label:'Temperature',     color:'#f0883e'},
+    {key:'precip', label:'Precipitation',   color:'#58a6ff'},
+    {key:'vapour', label:'Vapour Pressure', color:'#bc8cff'},
+    {key:'wind',   label:'Wind Speed',      color:'#8b949e'},
+  ]
 
-    const sigBadgeColor = sig.color;
-    card.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:baseline;">
-        <div class="chart-card-title">${label}</div>
-        <div style="font-family:var(--font-mono);font-size:10px;color:${sigBadgeColor};">
-          r = ${r.toFixed(3)} &nbsp;${sig.stars}&nbsp; p = ${p < 0.001 ? '<0.001' : p.toFixed(3)}
-        </div>
-      </div>
-      <div class="chart-card-sub">${m.n} → harvest ${m.harvest} · ${sig.level}</div>
-      <div class="chart-container"><canvas id="chart-${i}"></canvas></div>`;
-    chartsGrid.appendChild(card);
+  const card = document.createElement('div')
+  card.className = 'chart-card full'
+  card.innerHTML = `
+    <div class="chart-card-title">Staggered Lag Profile — Climate vs. Semester Yield</div>
+    <div class="chart-card-sub">Each point = Spearman r between that month's climate and final semester yield · Filled = p&lt;0.05</div>
+    <div class="chart-container" style="position:relative;height:260px;"><canvas id="lag-profile-chart"></canvas></div>`
+  chartsGrid.appendChild(card)
 
-    setTimeout(() => {
-      const ctx = document.getElementById(`chart-${i}`).getContext('2d');
-      const accentColor = r >= 0 ? '#3fb950' : '#f85149';
+  setTimeout(() => {
+    const ctx = document.getElementById('lag-profile-chart').getContext('2d')
 
-      // Build scatter data and trend line
-      const scatterData = results[i].xs.map((x,j) => {
-        // Get anomaly for this observation — re-extract from obs
-        return {x, y: 0}; // placeholder
-      });
+    const zeroLinePlugin = {
+      id: 'zeroLine',
+      afterDraw(chart) {
+        const {ctx: c, scales:{y}} = chart
+        const yZero = y.getPixelForValue(0)
+        const {left, right} = chart.chartArea
+        c.save()
+        c.strokeStyle = 'rgba(255,255,255,0.15)'
+        c.lineWidth = 1
+        c.setLineDash([4,4])
+        c.beginPath()
+        c.moveTo(left, yZero)
+        c.lineTo(right, yZero)
+        c.stroke()
+        c.restore()
+      }
+    }
 
-      // We need anomalies — store them on results
-      const obsAnomalies = results[i]._anomalies || [];
-      const pts = results[i].xs.map((x,j) => ({x: +x.toFixed(3), y: +obsAnomalies[j]?.toFixed(3) || 0}));
+    const datasets = varDefs.map(vd => {
+      const pts = profile[vd.key]
+      return {
+        label: vd.label,
+        data: pts.map(p => p.r),
+        borderColor: vd.color,
+        backgroundColor: vd.color + '33',
+        borderWidth: 2,
+        tension: 0.3,
+        pointRadius: pts.map(p => p.p < 0.05 ? 5 : 3),
+        pointBackgroundColor: pts.map(p => p.p < 0.05 ? vd.color : 'transparent'),
+        pointBorderColor: pts.map(_ => vd.color),
+        pointHoverRadius: 7,
+        fill: false,
+      }
+    })
 
-      // Trend line via least squares
-      const mx = pts.reduce((s,p)=>s+p.x,0)/pts.length;
-      const my = pts.reduce((s,p)=>s+p.y,0)/pts.length;
-      let num=0,den=0;
-      pts.forEach(p=>{num+=(p.x-mx)*(p.y-my);den+=(p.x-mx)**2;});
-      const slope = den ? num/den : 0;
-      const inter = my - slope*mx;
-      const xMin = Math.min(...pts.map(p=>p.x));
-      const xMax = Math.max(...pts.map(p=>p.x));
-      const trendData = [{x:xMin,y:slope*xMin+inter},{x:xMax,y:slope*xMax+inter}];
-
-      const ch = new Chart(ctx, {
-        data: {
-          datasets: [
-            {
-              type:'scatter', label:'Observations',
-              data: pts,
-              backgroundColor: accentColor+'66', borderColor: accentColor,
-              pointRadius:4, pointHoverRadius:6, borderWidth:1,
-            },
-            {
-              type:'line', label:'Trend',
-              data: trendData,
-              borderColor: accentColor, borderWidth:2,
-              pointRadius:0, borderDash:[4,3], fill:false,
-            }
-          ]
-        },
-        options:{
-          responsive:true, maintainAspectRatio:false, animation:false,
-          plugins:{
-            legend:{display:false},
-            tooltip:{
-              callbacks:{
-                label: item => item.datasetIndex===0
-                  ? `${label}: ${item.parsed.x.toFixed(2)} ${unit}  |  Yield anomaly: ${item.parsed.y.toFixed(3)} mt/ha`
-                  : null
-              },
-              backgroundColor:'#161b22', borderColor:'#30363d', borderWidth:1,
-              titleColor:'#e6edf3', bodyColor:'#8b949e',
-              titleFont:{family:'Space Mono',size:10}, bodyFont:{family:'Space Mono',size:10}
-            }
-          },
-          scales:{
-            x:{
-              type:'linear',
-              ticks:{color:'#8b949e',font:{family:'Space Mono',size:9},maxTicksLimit:6},
-              grid:{color:'rgba(48,54,61,0.5)'},
-              title:{display:true,text:`${label} (${unit})`,color:'#8b949e',font:{family:'Space Mono',size:9}}
-            },
-            y:{
-              ticks:{color:'#8b949e',font:{family:'Space Mono',size:9}},
-              grid:{color:'rgba(48,54,61,0.5)'},
-              title:{display:true,text:'Yield Anomaly (mt/ha)',color:'#8b949e',font:{family:'Space Mono',size:9}}
+    window._lagChart = new Chart(ctx, {
+      type: 'line',
+      data: { labels, datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false,
+        plugins: {
+          legend: {display:true, labels:{color:'#8b949e', font:{size:9, family:'Space Mono'}, boxWidth:12}},
+          tooltip: {
+            backgroundColor:'#161b22', borderColor:'#30363d', borderWidth:1,
+            titleColor:'#e6edf3', bodyColor:'#8b949e',
+            titleFont:{family:'Space Mono',size:10}, bodyFont:{family:'Space Mono',size:10},
+            callbacks: {
+              label(ctx2) {
+                const vd = varDefs[ctx2.datasetIndex]
+                const pt = profile[vd.key][ctx2.dataIndex]
+                return `${ctx2.dataset.label} · ${pt.monthLabel.replace(' ▸','')}: r=${pt.r.toFixed(2)}, p=${pt.p.toFixed(3)}, n=${pt.n}`
+              }
             }
           }
+        },
+        scales: {
+          x: {ticks:{color:'#8b949e',font:{size:9,family:'Space Mono'}}, grid:{color:'rgba(255,255,255,0.05)'}},
+          y: {
+            min:-1, max:1,
+            ticks:{color:'#8b949e',font:{size:9,family:'Space Mono'}},
+            grid:{color:'rgba(255,255,255,0.05)'},
+            title:{display:true,text:'Spearman r',color:'#8b949e',font:{size:9,family:'Space Mono'}}
+          }
         }
-      });
-      corrCharts.push(ch);
-    }, 50);
-  });
+      },
+      plugins: [zeroLinePlugin]
+    })
+    corrCharts.push(window._lagChart)
+  }, 50)
 
-  document.getElementById('corr-results').style.display='block';
+  // ── EFFECT SUMMARY CARDS (peak |r| per variable) ──────────
+  const summaryEl = document.getElementById('effect-summary')
+  summaryEl.innerHTML = ''
+  const varDefsSum = [
+    {key:'wind',   label:'Wind Speed'},
+    {key:'temp',   label:'Temperature'},
+    {key:'solar',  label:'Solar Rad.'},
+    {key:'vapour', label:'Vapour Pres.'},
+    {key:'precip', label:'Precipitation'},
+  ]
+  varDefsSum.forEach(({key, label}) => {
+    const pts = profile[key]
+    const peak = pts.reduce((best, pt) => Math.abs(pt.r) > Math.abs(best.r) ? pt : best, pts[0])
+    const dir = peak.r >= 0 ? '↑' : '↓'
+    const pos = peak.r >= 0
+    const star = peak.p < 0.05 ? ' ★' : ''
+    const mLabel = peak.monthLabel.replace(' ▸','')
+    summaryEl.innerHTML += `
+      <div class="effect-card">
+        <div class="effect-var">${label}</div>
+        <div style="font-family:var(--font-mono);font-size:9px;color:var(--muted);margin-bottom:4px;">peak: ${mLabel}</div>
+        <div class="effect-dir ${pos?'pos':'neg'}">${dir}</div>
+        <div class="effect-mag ${pos?'pos':'neg'}">${peak.r.toFixed(3)}${star}</div>
+        <div style="font-size:9px;color:var(--muted);margin-top:3px;font-family:var(--font-mono);">p=${peak.p.toFixed(3)}</div>
+      </div>`
+  })
+
+  summaryEl.innerHTML += `
+    <div style="grid-column:1/-1;font-size:10px;color:var(--muted);font-family:var(--font-mono);padding:6px 0;">
+      n = ${n} municipality-year observations · Window: ${MONTH_SHORT[growWin[0]]}→${MONTH_SHORT[growWin[growWin.length-1]]} · ${m.sem===1?'Dry':'Wet'} · ENSO: ${corrENSOPhase}
+    </div>`
+
+  // ── DISCLOSURE BLOCK ───────────────────────────────────────
+  const existing = document.getElementById('lag-disclosures')
+  if(existing) existing.remove()
+  const disc = document.createElement('div')
+  disc.id = 'lag-disclosures'
+  disc.style.cssText = 'margin-top:16px;padding:10px 14px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:5px;font-family:var(--font-mono);font-size:9px;color:var(--muted);line-height:1.9;'
+  disc.innerHTML = `
+    <div style="margin-bottom:4px;text-transform:uppercase;letter-spacing:0.08em;">Analytical disclosures</div>
+    <div>1 · Yield is seasonal — same semester yield correlated against each month's climate; not a month-resolved decomposition.</div>
+    <div>2 · Effective n ~40–50 due to shared CHIRPS grid cells (~0.05°); spatial autocorrelation not corrected.</div>
+    <div>3 · No multiple-testing correction across 5 variables × window months — exploratory only.</div>
+    <div>4 · Correlation ≠ causation; solar/temp/vapour are confounded via cloud cover.</div>
+    <div>5 · Fixed planting calendar assumed; actual planting shifts 2–4 weeks across municipalities.</div>`
+  chartsGrid.after(disc)
+
+  document.getElementById('corr-results').style.display='block'
 }
 // ══════════════════════════════════════════════════════════════
 // MODEL COMPLEMENT — YIELD ANOMALY PREDICTIONS
