@@ -1403,7 +1403,7 @@ function selectMonth(idx,btn) {
   // highlight all months in the growing window
   document.querySelectorAll('.month-btn').forEach((b,i)=>{
     const mn=MONTH_NUMS[MONTHS[i].n];
-    b.classList.toggle('active', growWin.includes(mn) && MONTHS[i].sem===m.sem);
+    b.classList.toggle('active', growWin.includes(mn));
   });
   renderSeasonCtx(idx, growWin);
   updateAnalyzeBtn();
