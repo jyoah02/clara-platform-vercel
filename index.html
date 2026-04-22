@@ -95,6 +95,10 @@ header{background:var(--panel);border-bottom:1px solid var(--border);padding:10p
 .enso-int-btn{flex:1;padding:5px 2px;font-family:var(--font-mono);font-size:9px;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:4px;cursor:pointer;transition:all 0.15s;text-align:center;}
 .enso-int-btn:hover{color:var(--text);}
 .enso-int-btn.active{background:rgba(255,255,255,0.08);border-color:var(--text);color:var(--text);}
+.season-mode-row{display:flex;gap:5px;margin:6px 0 10px;}
+.season-mode-btn{flex:1;padding:6px 4px;font-family:var(--font-mono);font-size:10px;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:4px;cursor:pointer;transition:all 0.15s;text-align:center;}
+.season-mode-btn:hover{color:var(--text);}
+.season-mode-btn.active{background:rgba(255,255,255,0.08);border-color:var(--text);color:var(--text);}
 .enso-analogue-info{font-size:10px;color:var(--muted);line-height:1.6;margin-bottom:10px;padding:7px 10px;background:rgba(255,255,255,0.03);border-radius:5px;border:1px solid var(--border);}
 .enso-analogue-info strong{color:var(--text);}
 .btn-simulate{width:100%;padding:9px;font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:0.08em;background:rgba(88,166,255,0.15);border:1px solid rgba(88,166,255,0.4);color:var(--accent);border-radius:5px;cursor:pointer;transition:all 0.15s;margin-top:2px;}
@@ -114,6 +118,10 @@ header{background:var(--panel);border-bottom:1px solid var(--border);padding:10p
 .result-val{font-family:var(--font-mono);font-size:12px;font-weight:700;color:var(--accent2);}
 .result-rec{margin-top:8px;padding:8px 10px;background:rgba(63,185,80,0.08);border-radius:4px;font-size:11px;color:var(--text);line-height:1.7;}
 .result-rec strong{color:var(--accent2);}
+.rec-callout{margin:8px 0;padding:9px 11px;border-radius:5px;font-size:11px;line-height:1.7;border:1px solid;}
+.rec-callout.dry{background:rgba(88,166,255,0.08);border-color:rgba(88,166,255,0.3);}
+.rec-callout.wet{background:rgba(63,185,80,0.08);border-color:rgba(63,185,80,0.3);}
+.rec-callout strong{color:var(--accent2);}
 .dist-bar-wrap{margin:8px 0;}
 .dist-bar-label{font-size:10px;color:var(--muted);margin-bottom:3px;display:flex;justify-content:space-between;}
 .dist-bar-track{height:6px;background:var(--border);border-radius:3px;overflow:hidden;}
@@ -273,6 +281,12 @@ header{background:var(--panel);border-bottom:1px solid var(--border);padding:10p
         <button class="enso-int-btn" id="int-str" onclick="selectIntensity('Strong')">Strong</button>
       </div>
       <div class="enso-analogue-info" id="analogue-info" style="display:none;"></div>
+      <div class="sb-label" style="margin-top:8px;">Season to Simulate</div>
+      <div class="season-mode-row" id="season-mode-row">
+        <button class="season-mode-btn" id="smode-dry" onclick="selectSeasonMode('Dry')">Dry (S1)</button>
+        <button class="season-mode-btn active" id="smode-both" onclick="selectSeasonMode('Both')">Both</button>
+        <button class="season-mode-btn" id="smode-wet" onclick="selectSeasonMode('Wet')">Wet (S2)</button>
+      </div>
       <button class="btn-simulate" id="simulate-btn" onclick="runSimulation()" disabled>Run Simulation</button>
       <div id="sim-result" style="margin-top:10px;"></div>
     </div>
@@ -402,6 +416,7 @@ let modelCorrelation = null;
 let csvData          = null; // parsed weekly CSV rows
 let selectedPhase    = null;
 let selectedIntensity= 'All';
+let selectedSeasonMode = 'Both';
 let selectedMonth    = null;
 let corrENSOValue    = 0; // numeric encoding for correlational tab
 let plantingMapInit  = false;
@@ -591,11 +606,24 @@ function selectIntensity(intensity) {
   updateSimBtn();
 }
 
+function selectSeasonMode(mode) {
+  selectedSeasonMode = mode;
+  document.querySelectorAll('#season-mode-row .season-mode-btn').forEach(b => b.classList.remove('active'));
+  const idMap = {'Dry':'smode-dry','Both':'smode-both','Wet':'smode-wet'};
+  document.getElementById(idMap[mode]).classList.add('active');
+  updateAnalogueInfo();
+  updateSimBtn();
+}
+
 function getAnalogueSemesters() {
   if(!selectedPhase) return [];
-  if(selectedPhase === 'Neutral') return ENSO_SEASONS['Neutral'];
-  if(selectedIntensity === 'All') return ENSO_SEASONS[selectedPhase];
-  return ENSO_INTENSITY[selectedPhase]?.[selectedIntensity] || [];
+  let sems;
+  if(selectedPhase === 'Neutral') sems = ENSO_SEASONS['Neutral'];
+  else if(selectedIntensity === 'All') sems = ENSO_SEASONS[selectedPhase];
+  else sems = ENSO_INTENSITY[selectedPhase]?.[selectedIntensity] || [];
+  if(selectedSeasonMode === 'Dry') return sems.filter(s => s.s === 1);
+  if(selectedSeasonMode === 'Wet') return sems.filter(s => s.s === 2);
+  return sems;
 }
 
 function updateAnalogueInfo() {
@@ -632,6 +660,7 @@ async function runSimulation() {
   const runStart = Date.now();
   const MIN_DURATION = 5000;
   const sems = getAnalogueSemesters();
+  window._lastSimSems = sems.slice()
   if(!sems.length || !modelPlanting || !csvData) return;
 
   const btn = document.getElementById('simulate-btn');
@@ -716,11 +745,24 @@ async function runSimulation() {
     console.log('Progress set to 70%');
   }, 100);
 
+  // Accumulate climate data by municipality key from filtered rows
+  const muniClimateSums = {};
+  filtered.forEach(row => {
+    const k = `${row.province.trim().toLowerCase()}||${row.municipality.trim().toLowerCase()}`;
+    if(!muniClimateSums[k]) muniClimateSums[k] = {wind:0,temp:0,solar:0,vp:0,precip:0,n:0};
+    muniClimateSums[k].wind   += +row.Wind_Speed_10m_Mean_24h || 0;
+    muniClimateSums[k].temp   += +row.Temperature_Air_2m_Mean_24h || 0;
+    muniClimateSums[k].solar  += +row.Solar_Radiation_Flux || 0;
+    muniClimateSums[k].vp     += +row.Vapour_Pressure_Mean_24h || 0;
+    muniClimateSums[k].precip += +row.Precipitation_CHIRPS || 0;
+    muniClimateSums[k].n++;
+  });
+
   // Aggregate by municipality — normalize keys to avoid name mismatch
   const muniResults = {};
   meta.forEach(({province, municipality, semester, harvest_year}, i) => {
     const k = `${province.trim().toLowerCase()}||${municipality.trim().toLowerCase()}`;
-    if(!muniResults[k]) muniResults[k] = {province, municipality, dry:[], wet:[], drySems:[], wetSems:[]};
+    if(!muniResults[k]) muniResults[k] = {province, municipality, dry:[], wet:[], drySems:[], wetSems:[], climSum:{wind:0,temp:0,solar:0,vp:0,precip:0}, climN:0};
     if(semester===1) { muniResults[k].dry.push(preds[i]); muniResults[k].drySems.push({year:harvest_year, sem:1}); }
     else             { muniResults[k].wet.push(preds[i]); muniResults[k].wetSems.push({year:harvest_year, sem:2}); }
   });
@@ -734,7 +776,9 @@ async function runSimulation() {
     if(dryMean !== null && wetMean !== null) recommended = dryMean >= wetMean ? 1 : 2;
     else if(dryMean !== null) recommended = 1;
     else if(wetMean !== null) recommended = 2;
-    simResults[k] = {province:r.province, municipality:r.municipality, dry:r.dry, wet:r.wet, drySems:r.drySems, wetSems:r.wetSems, dryMean, wetMean, recommended};
+    const cs = muniClimateSums[k] || {wind:0,temp:0,solar:0,vp:0,precip:0,n:0};
+    const cn = cs.n || 1;
+    simResults[k] = {province:r.province, municipality:r.municipality, dry:r.dry, wet:r.wet, drySems:r.drySems, wetSems:r.wetSems, dryMean, wetMean, recommended, climMeans:{wind:(cs.wind/cn).toFixed(2),temp:(cs.temp/cn).toFixed(2),solar:(cs.solar/cn).toFixed(1),vp:(cs.vp/cn).toFixed(2),precip:(cs.precip/cn).toFixed(2)}};
   });
 
   // Animate progress bar to 100% over minimum duration
@@ -766,10 +810,20 @@ async function runSimulation() {
         <div class="result-row"><span class="result-key">Analogue seasons</span><span class="result-val">${sems.length}</span></div>
         <div class="result-rec">Click any CHIRPS cell to see the yield distribution for that municipality.</div>
       </div>`;
+    if(selectedSeasonMode === 'Both') {
+      const toggleDiv = document.createElement('div');
+      toggleDiv.style.cssText = 'display:flex;gap:5px;margin-top:8px;';
+      toggleDiv.innerHTML = `
+        <button class="season-mode-btn" onclick="colorPlantingMap(1)">View Dry</button>
+        <button class="season-mode-btn" style="flex:1.3" onclick="colorPlantingMap(null)">Recommended</button>
+        <button class="season-mode-btn" onclick="colorPlantingMap(2)">View Wet</button>
+      `;
+      document.getElementById('sim-result').appendChild(toggleDiv);
+    }
   }, remaining);
 }
 
-function colorPlantingMap() {
+function colorPlantingMap(displaySeason) {
   CHIRPS_POINTS.forEach(pt => {
     const key = `${pt.province.trim().toLowerCase()}||${pt.municipality.trim().toLowerCase()}`;
     const r   = simResults[key];
@@ -779,7 +833,8 @@ function colorPlantingMap() {
       layer.setStyle({color:'rgba(255,255,255,0.3)',weight:0.8,fillColor:'rgba(255,255,255,0.07)',fillOpacity:1});
       return;
     }
-    if(r.recommended === 1) {
+    const sem = displaySeason !== undefined && displaySeason !== null ? displaySeason : r.recommended;
+    if(sem === 1) {
       layer.setStyle({color:'rgba(88,166,255,0.8)',weight:1,fillColor:'rgba(88,166,255,0.3)',fillOpacity:1});
     } else {
       layer.setStyle({color:'rgba(63,185,80,0.8)',weight:1,fillColor:'rgba(63,185,80,0.3)',fillOpacity:1});
@@ -792,6 +847,24 @@ function showCellSimResult(pt) {
   const r   = simResults[key];
   const panel = document.getElementById('sim-result');
   if(!r) { panel.innerHTML='<div style="font-size:11px;color:var(--muted);margin-top:10px;">No simulation result for this cell. Run a simulation first.</div>'; return; }
+
+  let climoDryMean = null, climoWetMean = null;
+  if(csvData) {
+    const provKey = key.split('||')[0], muniKey = key.split('||')[1];
+    const seen = new Set();
+    const uniqueRows = csvData.filter(row => {
+      if(!row.province || row.province.trim().toLowerCase() !== provKey) return false;
+      if(!row.municipality || row.municipality.trim().toLowerCase() !== muniKey) return false;
+      if(!(+row.yield_mt_ha > 0)) return false;
+      const sk = `${row.harvest_year}_${row.semester}`;
+      if(seen.has(sk)) return false;
+      seen.add(sk); return true;
+    });
+    const dryU = uniqueRows.filter(row => +row.semester === 1);
+    const wetU = uniqueRows.filter(row => +row.semester === 2);
+    if(dryU.length) climoDryMean = dryU.reduce((s,row)=>s+(+row.yield_mt_ha),0)/dryU.length;
+    if(wetU.length) climoWetMean = wetU.reduce((s,row)=>s+(+row.yield_mt_ha),0)/wetU.length;
+  }
 
   const pw = PLANTING_WINDOWS[r.recommended] || {};
   const semColor = r.recommended===1 ? 'var(--accent)' : 'var(--accent2)';
@@ -808,7 +881,36 @@ function showCellSimResult(pt) {
   else                        { confColor='var(--warn)';    confLabel='Low'; }
 
   const allPreds = [...r.dry, ...r.wet];
-  const minP = Math.min(...allPreds), maxP = Math.max(...allPreds);
+  const yieldRangeStr = allPreds.length > 1
+    ? `${Math.min(...allPreds).toFixed(2)} – ${Math.max(...allPreds).toFixed(2)} mt/ha`
+    : allPreds.length === 1
+      ? `${allPreds[0].toFixed(2)} mt/ha`
+      : '—'
+
+  // Why recommended? callout
+  const calloutClass = r.recommended === 1 ? 'dry' : 'wet';
+  const recName  = r.recommended === 1 ? 'Dry Season' : 'Wet Season';
+  const otherName= r.recommended === 1 ? 'Wet Season' : 'Dry Season';
+  const recMean  = r.recommended === 1 ? r.dryMean : r.wetMean;
+  const otherMean= r.recommended === 1 ? r.wetMean : r.dryMean;
+  const recN     = r.recommended === 1 ? r.dry.length : r.wet.length;
+  const otherN   = r.recommended === 1 ? r.wet.length : r.dry.length;
+  let calloutHTML;
+  if(otherMean !== null) {
+    const diff = (recMean - otherMean).toFixed(2);
+    const pct  = otherMean > 0 ? Math.round(((recMean-otherMean)/otherMean)*100) : 0;
+    calloutHTML = `<div class="rec-callout ${calloutClass}"><strong>Why ${recName}?</strong> Simulated mean yield was <strong>${recMean.toFixed(2)} mt/ha</strong> (${recN} analogue year${recN!==1?'s':''}) vs. ${otherMean.toFixed(2)} mt/ha for ${otherName} (${otherN} year${otherN!==1?'s':''}), a margin of +${diff} mt/ha (+${pct}%) under the selected ENSO condition.</div>`;
+  } else {
+    calloutHTML = `<div class="rec-callout ${calloutClass}"><strong>Why ${recName}?</strong> Only ${recName} analogue data exists for this municipality under the selected ENSO condition (${recN} year${recN!==1?'s':''}).</div>`;
+  }
+
+  // Analogue provenance + yield spread
+  const analogueList = [
+    ...r.drySems.map(s=>`${s.year} Dry`),
+    ...r.wetSems.map(s=>`${s.year} Wet`)
+  ].join(', ') || '—';
+  const dryRange = r.dry.length > 1 ? `${Math.min(...r.dry).toFixed(2)} – ${Math.max(...r.dry).toFixed(2)}` : null;
+  const wetRange = r.wet.length > 1 ? `${Math.min(...r.wet).toFixed(2)} – ${Math.max(...r.wet).toFixed(2)}` : null;
 
   // Plan 2A: season comparison bars
   const maxMean = Math.max(r.dryMean||0, r.wetMean||0) || 1;
@@ -838,6 +940,32 @@ function showCellSimResult(pt) {
     return `<div style="background:${bg};border:1px solid ${bdr};border-radius:2px;height:18px;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:8px;color:${clr};">${m}</div>`;
   }).join('');
 
+  // Planting-window climate from analogue years
+  const _pwPlantMonths = pwm.plant
+  const _analogueSems  = window._lastSimSems || []
+  const _pwRows = (csvData || []).filter(row => {
+    const mo = new Date(row.week_start).getMonth() + 1
+    if(!_pwPlantMonths.includes(mo)) return false
+    return _analogueSems.some(s => String(s.y) === String(row.harvest_year) && String(s.s) === String(row.semester))
+      && row.municipality === pt.municipality && row.province === pt.province
+  })
+  let _pwClim = null
+  if(_pwRows.length > 0) {
+    const _avg = key => {
+      const vals = _pwRows.map(row => parseFloat(row[key])).filter(v => !isNaN(v))
+      return vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length) : null
+    }
+    _pwClim = {
+      temp:   _avg('Temperature_Air_2m_Mean_24h'),
+      precip: _avg('Precipitation_CHIRPS'),
+      solar:  _avg('Solar_Radiation_Flux')
+    }
+  }
+  const _pwMonthNames = _pwPlantMonths.map(m => MONTH_SHORT[m]).join('–')
+  const _pwClimHTML = _pwClim
+    ? `<div style="margin-top:6px;font-size:10px;color:var(--muted);line-height:1.6;">During ${_pwMonthNames} in analogue years: <span style="color:var(--text);">Temp ${_pwClim.temp.toFixed(1)}°C · Precip ${_pwClim.precip.toFixed(0)} mm/wk · Solar ${_pwClim.solar.toFixed(1)} MJ/m²</span></div>`
+    : ''
+
   // Season labels for breakdown chart
   const dryLabels = (r.drySems||[]).map(s=>`${s.year} Dry`);
   const wetLabels = (r.wetSems||[]).map(s=>`${s.year} Wet`);
@@ -848,11 +976,28 @@ function showCellSimResult(pt) {
     <div class="result-panel" style="margin-top:10px;">
       <div class="result-header">${pt.municipality} · ${pt.province}</div>
       <div class="result-row"><span class="result-key">Recommendation</span><span class="result-val" style="color:${semColor}">${recLabel}</span></div>
+      ${calloutHTML}
       <div class="result-row"><span class="result-key">Confidence</span><span class="result-val" style="color:${confColor}">${confLabel} (${consensusPct}%)</span></div>
       <div class="result-row"><span class="result-key">Seasons agreed</span><span class="result-val" style="color:${confColor}">${agreedSems} of ${totalSems}</span></div>
       <div class="result-row"><span class="result-key">Dry season mean</span><span class="result-val" style="color:var(--accent)">${dryMeanStr} mt/ha</span></div>
+      ${climoDryMean !== null && r.dryMean !== null ? `<div class="result-row"><span class="result-key">Dry vs. avg (2018–2025)</span><span class="result-val" style="color:${r.dryMean>=climoDryMean?'var(--accent2)':'#f85149'}">${Math.abs(r.dryMean-climoDryMean).toFixed(2)} mt/ha ${r.dryMean>=climoDryMean?'above avg':'below avg'}</span></div>` : ''}
       <div class="result-row"><span class="result-key">Wet season mean</span><span class="result-val" style="color:var(--accent2)">${wetMeanStr} mt/ha</span></div>
-      <div class="result-row"><span class="result-key">Yield range</span><span class="result-val">${minP.toFixed(2)} – ${maxP.toFixed(2)} mt/ha</span></div>
+      ${climoWetMean !== null && r.wetMean !== null ? `<div class="result-row"><span class="result-key">Wet vs. avg (2018–2025)</span><span class="result-val" style="color:${r.wetMean>=climoWetMean?'var(--accent2)':'#f85149'}">${Math.abs(r.wetMean-climoWetMean).toFixed(2)} mt/ha ${r.wetMean>=climoWetMean?'above avg':'below avg'}</span></div>` : ''}
+      <div class="result-row"><span class="result-key">Yield range</span><span class="result-val">${yieldRangeStr}</span></div>
+      ${dryRange ? `<div class="result-row"><span class="result-key">Dry range</span><span class="result-val" style="color:var(--accent)">${dryRange} mt/ha</span></div>` : ''}
+      ${wetRange ? `<div class="result-row"><span class="result-key">Wet range</span><span class="result-val" style="color:var(--accent2)">${wetRange} mt/ha</span></div>` : ''}
+      <div class="result-row"><span class="result-key">Analogues</span><span class="result-val" style="font-size:10px;text-align:right;line-height:1.5;">${analogueList}</span></div>
+
+      <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">
+        <div style="font-size:9px;color:var(--muted);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:5px;">Mean Climate Inputs (Analogue Weeks)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px 10px;">
+          <div class="result-row" style="padding:3px 0;"><span class="result-key">Temperature</span><span class="result-val">${r.climMeans?.temp ?? '—'} °C</span></div>
+          <div class="result-row" style="padding:3px 0;"><span class="result-key">Precip</span><span class="result-val">${r.climMeans?.precip ?? '—'} mm/wk</span></div>
+          <div class="result-row" style="padding:3px 0;"><span class="result-key">Solar</span><span class="result-val">${r.climMeans?.solar ?? '—'} MJ/m²</span></div>
+          <div class="result-row" style="padding:3px 0;"><span class="result-key">Vapour Pres.</span><span class="result-val">${r.climMeans?.vp ?? '—'} kPa</span></div>
+          <div class="result-row" style="padding:3px 0;"><span class="result-key">Wind Speed</span><span class="result-val">${r.climMeans?.wind ?? '—'} m/s</span></div>
+        </div>
+      </div>
 
       <div style="margin-top:10px;">
         <div style="font-size:9px;color:var(--muted);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Predicted yield by season</div>
@@ -887,6 +1032,8 @@ function showCellSimResult(pt) {
           <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:rgba(240,136,62,0.5);margin-right:3px;vertical-align:middle;"></span>Harvest</span>
         </div>
         <div style="margin-top:6px;font-size:10px;color:var(--muted);"><strong style="color:var(--text);">Planting Window:</strong> ${pw.window} &nbsp;·&nbsp; <strong style="color:var(--text);">Expected Harvest:</strong> ${pw.harvest}</div>
+        <div style="margin-top:7px;font-size:9px;color:var(--muted);line-height:1.55;border-top:1px solid var(--border);padding-top:6px;">Planting window (${_pwMonthNames}) follows the standard Central Luzon rice calendar. The simulation determines which season (Dry or Wet) performs better under the selected ENSO condition — not the specific weeks within that season.</div>
+        ${_pwClimHTML}
       </div>` : ''}
     </div>
 
@@ -929,7 +1076,7 @@ function buildCellCharts(r, dryLabels, wetLabels) {
   const obsContent = document.getElementById('obs-content');
   if(!obsContent || !csvData) return;
 
-  const sems   = getAnalogueSemesters();
+  const sems   = (window._lastSimSems || getAnalogueSemesters())
   const semSet = new Set(sems.map(s=>`${s.y}_${s.s}`));
   const prov   = r.province.trim().toLowerCase();
   const muni   = r.municipality.trim().toLowerCase();
@@ -972,7 +1119,12 @@ function buildCellCharts(r, dryLabels, wetLabels) {
       ${obsWetMean!==null?`<div class="result-row" style="flex:1;border:none;padding:2px 0;"><span class="result-key">Obs. wet mean</span><span class="result-val" style="color:var(--accent2)">${obsWetMean} mt/ha</span></div>`:''}
     </div>
     <div style="position:relative;height:130px;"><canvas id="obs-yield-chart"></canvas></div>
-    <div style="font-size:9px;color:var(--muted);margin-top:5px;">Observed reported yield per analogue season (one value per municipality-semester from CSV). Dashed lines = transformer model mean prediction across analogue seasons — not a ground-truth target.</div>`;
+    <div style="font-size:9px;color:var(--muted);margin-top:5px;">Observed reported yield per analogue season (one value per municipality-semester from CSV). Dashed lines = transformer model mean prediction across analogue seasons — not a ground-truth target.</div>
+    <div style="margin-top:12px;">
+      <div style="font-size:9px;color:var(--muted);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:5px;">Monthly Climate Profile (Analogue Seasons)</div>
+      <div style="position:relative;height:150px;"><canvas id="clim-driver-chart"></canvas></div>
+      <div style="font-size:9px;color:var(--muted);margin-top:4px;">Mean values across analogue seasons for this municipality. Left axis: Temp (°C) &amp; Solar (MJ/m²). Right axis: Precip (mm) &amp; Vapour Pressure (kPa).</div>
+    </div>`;
 
   const obsCanvas = document.getElementById('obs-yield-chart');
   if(!obsCanvas) return;
@@ -1020,6 +1172,52 @@ function buildCellCharts(r, dryLabels, wetLabels) {
     },
     plugins:[refLinePlugin]
   });
+
+  if(window._climChart) { window._climChart.destroy(); window._climChart = null; }
+  const climCanvas = document.getElementById('clim-driver-chart');
+  if(climCanvas && csvData) {
+    const climRows = csvData.filter(row =>
+      row.province && row.province.trim().toLowerCase() === prov &&
+      row.municipality && row.municipality.trim().toLowerCase() === muni &&
+      semSet.has(`${row.harvest_year}_${row.semester}`)
+    );
+    const byMonth = {};
+    climRows.forEach(row => {
+      const mo = new Date(row.week_start).getMonth() + 1;
+      if(!byMonth[mo]) byMonth[mo] = {temp:[],precip:[],solar:[],vp:[]};
+      const t=+row.Temperature_Air_2m_Mean_24h, p=+row.Precipitation_CHIRPS, s=+row.Solar_Radiation_Flux, v=+row.Vapour_Pressure_Mean_24h;
+      if(!isNaN(t)&&t) byMonth[mo].temp.push(t);
+      if(!isNaN(p)&&p!==null&&String(p)!=='') byMonth[mo].precip.push(+p);
+      if(!isNaN(s)&&s) byMonth[mo].solar.push(s);
+      if(!isNaN(v)&&v) byMonth[mo].vp.push(v);
+    });
+    const climMonths = Object.keys(byMonth).map(Number).sort((a,b)=>a-b);
+    const avg = arr => arr.length ? arr.reduce((s,v)=>s+v,0)/arr.length : null;
+    window._climChart = new Chart(climCanvas, {
+      type:'line',
+      data:{
+        labels:climMonths.map(m=>MONTH_SHORT[m]),
+        datasets:[
+          {label:'Temp (°C)',    data:climMonths.map(m=>{const v=avg(byMonth[m].temp);  return v?+v.toFixed(2):null;}), borderColor:'rgba(240,136,62,0.85)',backgroundColor:'transparent',tension:0.3,yAxisID:'yT',pointRadius:3},
+          {label:'Solar MJ/m²', data:climMonths.map(m=>{const v=avg(byMonth[m].solar); return v?+v.toFixed(1):null;}), borderColor:'rgba(247,201,72,0.85)',backgroundColor:'transparent',tension:0.3,yAxisID:'yT',pointRadius:3},
+          {label:'Precip mm',   data:climMonths.map(m=>{const v=avg(byMonth[m].precip);return v?+v.toFixed(2):null;}), borderColor:'rgba(88,166,255,0.85)', backgroundColor:'transparent',tension:0.3,yAxisID:'yP',pointRadius:3},
+          {label:'VP kPa',      data:climMonths.map(m=>{const v=avg(byMonth[m].vp);    return v?+v.toFixed(2):null;}), borderColor:'rgba(63,185,80,0.75)',  backgroundColor:'transparent',tension:0.3,yAxisID:'yP',pointRadius:3}
+        ]
+      },
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        plugins:{
+          legend:{labels:{color:'#8b949e',font:{size:9,family:'Space Mono'},boxWidth:10,padding:8}},
+          tooltip:{callbacks:{label:i=>`${i.dataset.label}: ${i.raw}`}}
+        },
+        scales:{
+          yT:{type:'linear',position:'left', grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#8b949e',font:{size:9,family:'Space Mono'}}},
+          yP:{type:'linear',position:'right',grid:{display:false},               ticks:{color:'#8b949e',font:{size:9,family:'Space Mono'}}},
+          x: {grid:{display:false},                                               ticks:{color:'#8b949e',font:{size:9,family:'Space Mono'}}}
+        }
+      }
+    });
+  }
 }
 
 // ══════════════════════════════════════════════════════════════
