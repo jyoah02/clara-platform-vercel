@@ -265,29 +265,65 @@ function closeCellPopup() {
   if(window._climChart) { window._climChart.destroy(); window._climChart = null; }
 }
 
-function togglePopupSection(section) {
-  const content = document.getElementById(`popup-${section}`);
-  const btn     = document.getElementById(`popup-${section}-btn`);
-  if(!content || !btn) return;
-  const isOpen = content.classList.toggle('open');
-  btn.classList.toggle('open', isOpen);
-  if(isOpen && section === 'obs') buildObsCharts(window._lastPopupData);
+function switchPopupTab(tab) {
+  const btn = document.getElementById('ptab-' + tab);
+  const isActive = btn.classList.contains('active');
+  document.querySelectorAll('.popup-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('popup-details').classList.remove('open');
+  document.getElementById('popup-obs').classList.remove('open');
+  if(!isActive) {
+    btn.classList.add('active');
+    document.getElementById('popup-' + (tab === 'details' ? 'details' : 'obs')).classList.add('open');
+    if(tab === 'obs') buildObsCharts(window._lastPopupData);
+  }
 }
 
 function positionPopup(popup, mapEl, latLng) {
   const mapRect  = mapEl.getBoundingClientRect();
   const pt       = pMap.latLngToContainerPoint(latLng);
-  const popW     = 340, popH = 420;
+  const popW     = 420, popH = 520;
   const margin   = 12;
-  let left = pt.x + margin;
-  let top  = pt.y - popH / 2;
-  if(left + popW > mapRect.width  - margin) left = pt.x - popW - margin;
+  let left = mapRect.left + pt.x + margin;
+  let top  = mapRect.top  + pt.y - popH / 2;
+  if(left + popW > window.innerWidth  - margin) left = mapRect.left + pt.x - popW - margin;
   if(left < margin) left = margin;
-  if(top < margin) top = margin;
-  if(top + popH > mapRect.height - margin) top = mapRect.height - popH - margin;
+  if(top  < margin) top  = margin;
+  if(top  + popH > window.innerHeight - margin) top = window.innerHeight - popH - margin;
   popup.style.left = left + 'px';
   popup.style.top  = top  + 'px';
 }
+
+(function initPopupDrag() {
+  let dragging = false, startX, startY, origLeft, origTop;
+  function onMouseDown(e) {
+    if(e.target.closest('.cell-popup-close')) return;
+    dragging = true;
+    startX = e.clientX; startY = e.clientY;
+    const popup = document.getElementById('cell-popup');
+    origLeft = parseInt(popup.style.left) || 0;
+    origTop  = parseInt(popup.style.top)  || 0;
+    e.preventDefault();
+  }
+  function onMouseMove(e) {
+    if(!dragging) return;
+    const popup  = document.getElementById('cell-popup');
+    const popW   = popup.offsetWidth, popH = popup.offsetHeight;
+    const margin = 8;
+    let left = origLeft + (e.clientX - startX);
+    let top  = origTop  + (e.clientY - startY);
+    left = Math.max(margin, Math.min(left, window.innerWidth  - popW - margin));
+    top  = Math.max(margin, Math.min(top,  window.innerHeight - popH - margin));
+    popup.style.left = left + 'px';
+    popup.style.top  = top  + 'px';
+  }
+  function onMouseUp() { dragging = false; }
+  document.addEventListener('DOMContentLoaded', () => {
+    const header = document.querySelector('.cell-popup-header');
+    if(header) header.addEventListener('mousedown', onMouseDown);
+  });
+  document.addEventListener('mousemove', onMouseMove);
+  document.addEventListener('mouseup',   onMouseUp);
+})();
 
 function showCellSimResult(pt) {
   const key = `${pt.province.trim().toLowerCase()}||${pt.municipality.trim().toLowerCase()}`;
@@ -453,6 +489,7 @@ function showCellSimResult(pt) {
   const popup = document.getElementById('cell-popup');
   const mapEl = document.getElementById('map-planting');
   popup.classList.add('visible');
+  switchPopupTab('details');
   positionPopup(popup, mapEl, [pt.lat, pt.lon]);
 
   requestAnimationFrame(() => buildBreakdownChart(r, dryLabels, wetLabels, bkHeight));

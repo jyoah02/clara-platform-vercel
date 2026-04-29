@@ -124,26 +124,25 @@
       <div class="legend-row" style="margin-bottom:0;font-size:10px;"><div class="legend-swatch" style="width:10px;height:10px;background:rgba(74,222,128,0.2);border:1px solid #4ade80"></div><label style="display:flex;align-items:center;gap:5px;cursor:pointer;"><input type="checkbox" id="tog-rice-p" style="accent-color:#4ade80;width:11px;height:11px;">Rice areas</label></div>
     </div>
   </div>
-  <div id="map-planting" style="position:relative;">
-    <div class="cell-popup" id="cell-popup">
-      <div class="cell-popup-header">
-        <div class="cell-popup-location">
-          <div class="cell-popup-muni" id="popup-muni"></div>
-          <div class="cell-popup-prov" id="popup-prov"></div>
-        </div>
-        <button class="cell-popup-close" onclick="closeCellPopup()">✕</button>
-      </div>
-      <div class="cell-popup-primary" id="popup-primary"></div>
-      <button class="cell-popup-expand-btn" id="popup-details-btn" onclick="togglePopupSection('details')">
-        <span>Analogue Detail</span><span class="exp-arrow">▼</span>
-      </button>
-      <div class="cell-popup-details" id="popup-details"></div>
-      <button class="cell-popup-obs-btn" id="popup-obs-btn" onclick="togglePopupSection('obs')">
-        <span>Observed Historical Yields</span><span class="exp-arrow">▼</span>
-      </button>
-      <div class="cell-popup-obs" id="popup-obs"></div>
+  <div id="map-planting" style="position:relative;"></div>
+</div>
+
+<!-- ═══════════ CELL RESULT POPUP ═══════════ -->
+<div class="cell-popup" id="cell-popup">
+  <div class="cell-popup-header">
+    <div class="cell-popup-location">
+      <div class="cell-popup-muni" id="popup-muni"></div>
+      <div class="cell-popup-prov" id="popup-prov"></div>
     </div>
+    <button class="cell-popup-close" onclick="closeCellPopup()">✕</button>
   </div>
+  <div class="cell-popup-primary" id="popup-primary"></div>
+  <div class="popup-tabs">
+    <button class="popup-tab active" id="ptab-details" onclick="switchPopupTab('details')">Analogue Detail</button>
+    <button class="popup-tab" id="ptab-obs" onclick="switchPopupTab('obs')">Historical Yields</button>
+  </div>
+  <div class="cell-popup-details open" id="popup-details"></div>
+  <div class="cell-popup-obs" id="popup-obs"></div>
 </div>
 
 <!-- ═══════════ FULL-SCREEN LOADING OVERLAY ═══════════ -->
