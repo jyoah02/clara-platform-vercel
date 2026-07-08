@@ -35,6 +35,10 @@ function loadRiceAreaOverlay(targetMap, layerRef, onLoaded) {
 const vMap = L.map('map-validation',{center:[15.3,120.8],zoom:8,zoomControl:true,attributionControl:false});
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19}).addTo(vMap);
 
+// Custom panes so boundaries render beneath point markers (overlayPane default is 400)
+vMap.createPane('provBoundaries'); vMap.getPane('provBoundaries').style.zIndex = 390;
+vMap.createPane('muniBoundaries'); vMap.getPane('muniBoundaries').style.zIndex = 395;
+
 const vMarkerLayer=L.layerGroup().addTo(vMap), vCellLayer=L.layerGroup();
 const vChirpsPtLayer=L.layerGroup(), vChirpsCellLayer=L.layerGroup();
 let vMarkerMap={}, vChirpsMarkerMap={}, selectedMarker=null;
@@ -61,6 +65,44 @@ CHIRPS_POINTS.forEach(pt => {
   const cc=L.rectangle([[pt.lat-half,pt.lon-half],[pt.lat+half,pt.lon+half]],{color:'rgba(34,211,238,0.6)',weight:0.5,fillColor:'rgba(34,211,238,0.04)',fillOpacity:1,interactive:false});
   vChirpsCellLayer.addLayer(cc);
 });
+
+// ── Province & municipality boundary layers (convex hulls from grid point data) ──
+const vProvLayer = L.layerGroup().addTo(vMap);
+const vMuniLayer = L.layerGroup().addTo(vMap);
+
+const _provPts = {};
+GRID_POINTS.forEach(pt => {
+  if(!_provPts[pt.province]) _provPts[pt.province] = [];
+  _provPts[pt.province].push([pt.lon, pt.lat]);
+});
+Object.entries(_provPts).forEach(([prov, coords]) => {
+  if(coords.length < 3) return;
+  const hull = turf.convex(turf.featureCollection(coords.map(c => turf.point(c))));
+  if(!hull) return;
+  L.geoJSON(hull, {
+    style: {color:'rgba(88,166,255,0.8)', weight:1.5, fillColor:'rgba(88,166,255,0.07)', fillOpacity:1, opacity:0.8},
+    pane: 'provBoundaries', interactive: false
+  }).addTo(vProvLayer);
+});
+
+const _muniPts = {};
+CHIRPS_POINTS.forEach(pt => {
+  const key = `${pt.province}||${pt.municipality}`;
+  if(!_muniPts[key]) _muniPts[key] = [];
+  _muniPts[key].push([pt.lon, pt.lat]);
+});
+Object.entries(_muniPts).forEach(([, coords]) => {
+  if(coords.length < 3) return;
+  const hull = turf.convex(turf.featureCollection(coords.map(c => turf.point(c))));
+  if(!hull) return;
+  L.geoJSON(hull, {
+    style: {color:'rgba(63,185,80,0.7)', weight:1, fillColor:'rgba(63,185,80,0.05)', fillOpacity:1, opacity:0.7},
+    pane: 'muniBoundaries', interactive: false
+  }).addTo(vMuniLayer);
+});
+
+document.getElementById('tog-prov').addEventListener('change', e => e.target.checked ? vMap.addLayer(vProvLayer) : vMap.removeLayer(vProvLayer));
+document.getElementById('tog-muni').addEventListener('change', e => e.target.checked ? vMap.addLayer(vMuniLayer) : vMap.removeLayer(vMuniLayer));
 
 document.getElementById('tog-pts').addEventListener('change',e=>e.target.checked?vMap.addLayer(vMarkerLayer):vMap.removeLayer(vMarkerLayer));
 document.getElementById('tog-cells').addEventListener('change',e=>e.target.checked?vMap.addLayer(vCellLayer):vMap.removeLayer(vCellLayer));
