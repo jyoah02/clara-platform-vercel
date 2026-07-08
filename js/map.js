@@ -66,40 +66,23 @@ CHIRPS_POINTS.forEach(pt => {
   vChirpsCellLayer.addLayer(cc);
 });
 
-// ── Province & municipality boundary layers (convex hulls from grid point data) ──
+// ── Province & municipality boundary layers (GADM administrative boundaries) ──
 const vProvLayer = L.layerGroup().addTo(vMap);
 const vMuniLayer = L.layerGroup().addTo(vMap);
 
-const _provPts = {};
-GRID_POINTS.forEach(pt => {
-  if(!_provPts[pt.province]) _provPts[pt.province] = [];
-  _provPts[pt.province].push([pt.lon, pt.lat]);
-});
-Object.entries(_provPts).forEach(([prov, coords]) => {
-  if(coords.length < 3) return;
-  const hull = turf.convex(turf.featureCollection(coords.map(c => turf.point(c))));
-  if(!hull) return;
-  L.geoJSON(hull, {
-    style: {color:'rgba(88,166,255,0.8)', weight:1.5, fillColor:'rgba(88,166,255,0.07)', fillOpacity:1, opacity:0.8},
+fetch('provinces_cl.geojson').then(r=>r.json()).then(data => {
+  L.geoJSON(data, {
+    style: ft => ({color: getColor(ft.properties.province), weight:1.5, fillColor: getColor(ft.properties.province), fillOpacity:0.05, opacity:0.8}),
     pane: 'provBoundaries', interactive: false
   }).addTo(vProvLayer);
-});
+}).catch(()=>{});
 
-const _muniPts = {};
-CHIRPS_POINTS.forEach(pt => {
-  const key = `${pt.province}||${pt.municipality}`;
-  if(!_muniPts[key]) _muniPts[key] = [];
-  _muniPts[key].push([pt.lon, pt.lat]);
-});
-Object.entries(_muniPts).forEach(([, coords]) => {
-  if(coords.length < 3) return;
-  const hull = turf.convex(turf.featureCollection(coords.map(c => turf.point(c))));
-  if(!hull) return;
-  L.geoJSON(hull, {
-    style: {color:'rgba(63,185,80,0.7)', weight:1, fillColor:'rgba(63,185,80,0.05)', fillOpacity:1, opacity:0.7},
+fetch('municipalities_cl.geojson').then(r=>r.json()).then(data => {
+  L.geoJSON(data, {
+    style: ft => ({color: getColor(ft.properties.province), weight:0.8, fillColor: getColor(ft.properties.province), fillOpacity:0.03, opacity:0.6}),
     pane: 'muniBoundaries', interactive: false
   }).addTo(vMuniLayer);
-});
+}).catch(()=>{});
 
 document.getElementById('tog-prov').addEventListener('change', e => e.target.checked ? vMap.addLayer(vProvLayer) : vMap.removeLayer(vProvLayer));
 document.getElementById('tog-muni').addEventListener('change', e => e.target.checked ? vMap.addLayer(vMuniLayer) : vMap.removeLayer(vMuniLayer));

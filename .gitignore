@@ -1,0 +1,5 @@
+# GADM boundary source files (large, not for repo)
+gadm41_PHL_*.json.zip
+gadm_extracted/
+provinces_cl.geojson
+municipalities_cl.geojson
